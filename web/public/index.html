@@ -17,16 +17,8 @@
       margin: 0 auto;
       padding: 24px;
     }
-    h1 {
-      font-size: 24px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .subtitle {
-      color: #94a3b8;
-      font-size: 14px;
-      margin-bottom: 32px;
-    }
+    h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+    .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 32px; }
 
     /* Start view */
     .start-view {
@@ -37,16 +29,8 @@
       min-height: 60vh;
       gap: 24px;
     }
-    .start-view h2 {
-      font-size: 32px;
-      font-weight: 700;
-    }
-    .start-view p {
-      color: #94a3b8;
-      max-width: 500px;
-      text-align: center;
-      line-height: 1.6;
-    }
+    .start-view h2 { font-size: 32px; font-weight: 700; }
+    .start-view p { color: #94a3b8; max-width: 500px; text-align: center; line-height: 1.6; }
     .url-input {
       width: 100%;
       max-width: 480px;
@@ -71,10 +55,7 @@
       transition: background 0.2s;
     }
     .btn-primary:hover { background: #4f46e5; }
-    .btn-primary:disabled {
-      background: #334155;
-      cursor: not-allowed;
-    }
+    .btn-primary:disabled { background: #334155; cursor: not-allowed; }
 
     /* Session view */
     .session-view { display: none; }
@@ -95,11 +76,9 @@
       font-size: 13px;
       font-weight: 500;
     }
-    .status-badge .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
+    .status-badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .status-navigating { background: #1e2a3a; color: #60a5fa; }
+    .status-navigating .dot { background: #60a5fa; animation: pulse 1s infinite; }
     .status-active { background: #1e3a2f; color: #4ade80; }
     .status-active .dot { background: #4ade80; animation: pulse 2s infinite; }
     .status-starting { background: #2e2a1e; color: #facc15; }
@@ -108,16 +87,9 @@
     .status-success .dot { background: #4ade80; }
     .status-failed { background: #3a1e1e; color: #f87171; }
     .status-failed .dot { background: #f87171; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    .session-actions {
-      display: flex;
-      gap: 8px;
-    }
+    .session-actions { display: flex; gap: 8px; }
     .btn-confirm {
       padding: 8px 20px;
       background: #059669;
@@ -141,6 +113,25 @@
     }
     .btn-cancel:hover { background: #b91c1c; }
 
+    /* AI Log */
+    .ai-log {
+      margin-bottom: 12px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px 16px;
+      max-height: 160px;
+      overflow-y: auto;
+      font-size: 13px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      line-height: 1.6;
+    }
+    .ai-log .log-entry { color: #94a3b8; }
+    .ai-log .log-entry.action { color: #60a5fa; }
+    .ai-log .log-entry.handoff { color: #4ade80; font-weight: 600; }
+    .ai-log .log-entry.error { color: #f87171; }
+    .ai-log .log-entry.thinking { color: #a78bfa; }
+
     .vnc-wrapper {
       width: 100%;
       border: 2px solid #334155;
@@ -148,11 +139,7 @@
       overflow: hidden;
       background: #000;
     }
-    .vnc-wrapper iframe {
-      width: 100%;
-      height: 70vh;
-      border: none;
-    }
+    .vnc-wrapper iframe { width: 100%; height: 65vh; border: none; }
     .current-url {
       padding: 8px 16px;
       background: #1e293b;
@@ -173,19 +160,9 @@
       min-height: 60vh;
       gap: 24px;
     }
-    .result-icon {
-      font-size: 72px;
-      line-height: 1;
-    }
-    .result-title {
-      font-size: 28px;
-      font-weight: 700;
-    }
-    .result-desc {
-      color: #94a3b8;
-      text-align: center;
-      max-width: 400px;
-    }
+    .result-icon { font-size: 72px; line-height: 1; }
+    .result-title { font-size: 28px; font-weight: 700; }
+    .result-desc { color: #94a3b8; text-align: center; max-width: 400px; }
     .btn-restart {
       padding: 12px 28px;
       background: #334155;
@@ -201,18 +178,18 @@
 <body>
   <div class="container">
     <h1>University Account Authorization</h1>
-    <p class="subtitle">PoC: Human-in-the-loop auth via remote browser session</p>
+    <p class="subtitle">AI navigates to the login page, then you take over for credentials &amp; 2FA</p>
 
     <!-- Start View -->
     <div class="start-view" id="startView">
       <h2>Connect Your University</h2>
-      <p>Launch a secure remote browser session to log into your university portal. You'll interact with the browser directly to complete login and 2FA.</p>
+      <p>Enter your university's website URL. AI will automatically navigate to the login page, then hand control to you to enter your credentials and complete 2FA.</p>
       <input
         type="url"
         class="url-input"
         id="portalUrl"
-        placeholder="University portal URL (e.g. https://login.microsoftonline.com)"
-        value="https://login.microsoftonline.com"
+        placeholder="University website URL (e.g. https://www.mit.edu)"
+        value=""
       >
       <button class="btn-primary" id="authBtn" onclick="startSession()">
         Authorize university account
@@ -229,9 +206,12 @@
           </span>
         </div>
         <div class="session-actions">
-          <button class="btn-confirm" onclick="confirmAuth()">I've completed login</button>
+          <button class="btn-confirm" onclick="confirmAuth()" id="confirmBtn" style="display:none">I've completed login</button>
           <button class="btn-cancel" onclick="cancelSession()">Cancel</button>
         </div>
+      </div>
+      <div class="ai-log" id="aiLog">
+        <div class="log-entry">Initializing AI navigator...</div>
       </div>
       <div class="vnc-wrapper">
         <iframe id="vncFrame" src=""></iframe>
@@ -250,6 +230,7 @@
 
   <script>
     let pollInterval = null;
+    let lastLogLength = 0;
 
     async function startSession() {
       const btn = document.getElementById('authBtn');
@@ -257,6 +238,12 @@
       btn.textContent = 'Starting...';
 
       const url = document.getElementById('portalUrl').value;
+      if (!url) {
+        alert('Please enter a university URL');
+        btn.disabled = false;
+        btn.textContent = 'Authorize university account';
+        return;
+      }
 
       try {
         const resp = await fetch('/api/session/start', {
@@ -267,22 +254,21 @@
         const data = await resp.json();
 
         if (data.error) {
-          alert('Failed to start session: ' + data.error);
+          alert('Failed to start: ' + data.error);
           btn.disabled = false;
           btn.textContent = 'Authorize university account';
           return;
         }
 
-        // Show session view
         document.getElementById('startView').style.display = 'none';
         document.getElementById('sessionView').style.display = 'block';
+        document.getElementById('aiLog').innerHTML = '<div class="log-entry">AI navigator started...</div>';
+        lastLogLength = 0;
 
-        // Load noVNC in iframe
         const vncUrl = `http://${window.location.hostname}:6080/vnc_lite.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000`;
         document.getElementById('vncFrame').src = vncUrl;
 
-        // Start polling status
-        pollInterval = setInterval(pollStatus, 2000);
+        pollInterval = setInterval(pollStatus, 1500);
       } catch (err) {
         alert('Error: ' + err.message);
         btn.disabled = false;
@@ -298,6 +284,24 @@
         updateStatusBadge(data.status);
         document.getElementById('currentUrl').textContent = data.url || 'Waiting...';
 
+        // Update AI log
+        if (data.aiLog && data.aiLog.length > lastLogLength) {
+          const logEl = document.getElementById('aiLog');
+          for (let i = lastLogLength; i < data.aiLog.length; i++) {
+            const entry = data.aiLog[i];
+            const div = document.createElement('div');
+            div.className = 'log-entry ' + (entry.phase || '');
+            div.textContent = entry.message;
+            logEl.appendChild(div);
+          }
+          lastLogLength = data.aiLog.length;
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        // Show confirm button when user has control
+        document.getElementById('confirmBtn').style.display =
+          data.status === 'active' ? '' : 'none';
+
         if (data.status === 'success') {
           clearInterval(pollInterval);
           showResult(true);
@@ -311,16 +315,19 @@
     function updateStatusBadge(status) {
       const badge = document.getElementById('statusBadge');
       const text = document.getElementById('statusText');
-
       badge.className = 'status-badge';
       switch (status) {
         case 'starting':
           badge.classList.add('status-starting');
           text.textContent = 'Starting browser...';
           break;
+        case 'navigating':
+          badge.classList.add('status-navigating');
+          text.textContent = 'AI is navigating to login page...';
+          break;
         case 'active':
           badge.classList.add('status-active');
-          text.textContent = 'Browser active — complete login below';
+          text.textContent = 'Your turn — complete login below';
           break;
         case 'success':
           badge.classList.add('status-success');
@@ -357,7 +364,7 @@
         document.getElementById('resultIcon').textContent = '\u2705';
         document.getElementById('resultTitle').textContent = 'Authorization Successful';
         document.getElementById('resultDesc').textContent =
-          'The university account has been connected. In production, session cookies/tokens would be captured here for schedule access.';
+          'University account connected. In production, session cookies/tokens would be captured for calendar access.';
       } else {
         document.getElementById('resultIcon').textContent = '\u274C';
         document.getElementById('resultTitle').textContent = 'Authorization Failed';
@@ -372,6 +379,7 @@
       document.getElementById('startView').style.display = 'flex';
       document.getElementById('authBtn').disabled = false;
       document.getElementById('authBtn').textContent = 'Authorize university account';
+      lastLogLength = 0;
     }
   </script>
 </body>
