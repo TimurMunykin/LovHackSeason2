@@ -1,0 +1,12 @@
+{$APP_DOMAIN} {
+  encode gzip zstd
+  reverse_proxy web:3000
+}
+
+{$VNC_DOMAIN} {
+  basicauth {
+    {$VNC_BASIC_AUTH_USER} {$VNC_BASIC_AUTH_HASH}
+  }
+
+  reverse_proxy browser:6080
+}
