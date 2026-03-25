@@ -7,8 +7,6 @@ services:
     environment:
       - APP_DOMAIN=${APP_DOMAIN}
       - VNC_DOMAIN=${VNC_DOMAIN}
-      - VNC_BASIC_AUTH_USER=${VNC_BASIC_AUTH_USER}
-      - VNC_BASIC_AUTH_HASH=${VNC_BASIC_AUTH_HASH}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

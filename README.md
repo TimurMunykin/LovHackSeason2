@@ -7,7 +7,7 @@ This PoC can be deployed manually on a VPS over SSH with Docker Compose and Cadd
 ### What gets exposed
 
 - `https://APP_DOMAIN` serves the web app
-- `https://VNC_DOMAIN` serves noVNC behind HTTP basic auth
+- `https://VNC_DOMAIN` serves noVNC
 
 ### Prerequisites
 
@@ -19,11 +19,8 @@ This PoC can be deployed manually on a VPS over SSH with Docker Compose and Cadd
 
 ```bash
 cp .env.example .env
-docker run --rm caddy:2 caddy hash-password --plaintext 'change-me'
 chmod +x deploy.sh
 ```
-
-Put the generated hash into `VNC_BASIC_AUTH_HASH` inside `.env`.
 
 Required `.env` values:
 
@@ -31,8 +28,6 @@ Required `.env` values:
 OPENAI_API_KEY=...
 APP_DOMAIN=uni-schedule-sync.xyz
 VNC_DOMAIN=vnc.uni-schedule-sync.xyz
-VNC_BASIC_AUTH_USER=admin
-VNC_BASIC_AUTH_HASH=...
 ```
 
 ### Deploy

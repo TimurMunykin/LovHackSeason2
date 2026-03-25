@@ -21,7 +21,7 @@ set -a
 . ./.env
 set +a
 
-required_vars=(OPENAI_API_KEY APP_DOMAIN VNC_DOMAIN VNC_BASIC_AUTH_USER VNC_BASIC_AUTH_HASH)
+required_vars=(OPENAI_API_KEY APP_DOMAIN VNC_DOMAIN)
 for var in "${required_vars[@]}"; do
   if [ -z "${!var:-}" ]; then
     echo "ERROR: $var is not set in .env"
