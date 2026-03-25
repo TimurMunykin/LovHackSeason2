@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>University Auth PoC</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    /* Start view */
+    .start-view {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      gap: 24px;
+    }
+    .start-view h2 {
+      font-size: 32px;
+      font-weight: 700;
+    }
+    .start-view p {
+      color: #94a3b8;
+      max-width: 500px;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .url-input {
+      width: 100%;
+      max-width: 480px;
+      padding: 12px 16px;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 14px;
+      outline: none;
+    }
+    .url-input:focus { border-color: #6366f1; }
+    .btn-primary {
+      padding: 14px 32px;
+      background: #6366f1;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: #4f46e5; }
+    .btn-primary:disabled {
+      background: #334155;
+      cursor: not-allowed;
+    }
+
+    /* Session view */
+    .session-view { display: none; }
+    .session-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .status-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .status-active { background: #1e3a2f; color: #4ade80; }
+    .status-active .dot { background: #4ade80; animation: pulse 2s infinite; }
+    .status-starting { background: #2e2a1e; color: #facc15; }
+    .status-starting .dot { background: #facc15; animation: pulse 1s infinite; }
+    .status-success { background: #1e3a2f; color: #4ade80; }
+    .status-success .dot { background: #4ade80; }
+    .status-failed { background: #3a1e1e; color: #f87171; }
+    .status-failed .dot { background: #f87171; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .session-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-confirm {
+      padding: 8px 20px;
+      background: #059669;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-confirm:hover { background: #047857; }
+    .btn-cancel {
+      padding: 8px 20px;
+      background: #dc2626;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-cancel:hover { background: #b91c1c; }
+
+    .vnc-wrapper {
+      width: 100%;
+      border: 2px solid #334155;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+    }
+    .vnc-wrapper iframe {
+      width: 100%;
+      height: 70vh;
+      border: none;
+    }
+    .current-url {
+      padding: 8px 16px;
+      background: #1e293b;
+      font-size: 12px;
+      color: #94a3b8;
+      border-top: 1px solid #334155;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Result view */
+    .result-view {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      gap: 24px;
+    }
+    .result-icon {
+      font-size: 72px;
+      line-height: 1;
+    }
+    .result-title {
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .result-desc {
+      color: #94a3b8;
+      text-align: center;
+      max-width: 400px;
+    }
+    .btn-restart {
+      padding: 12px 28px;
+      background: #334155;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .btn-restart:hover { background: #475569; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>University Account Authorization</h1>
+    <p class="subtitle">PoC: Human-in-the-loop auth via remote browser session</p>
+
+    <!-- Start View -->
+    <div class="start-view" id="startView">
+      <h2>Connect Your University</h2>
+      <p>Launch a secure remote browser session to log into your university portal. You'll interact with the browser directly to complete login and 2FA.</p>
+      <input
+        type="url"
+        class="url-input"
+        id="portalUrl"
+        placeholder="University portal URL (e.g. https://login.microsoftonline.com)"
+        value="https://login.microsoftonline.com"
+      >
+      <button class="btn-primary" id="authBtn" onclick="startSession()">
+        Authorize university account
+      </button>
+    </div>
+
+    <!-- Session View -->
+    <div class="session-view" id="sessionView">
+      <div class="session-header">
+        <div>
+          <span class="status-badge status-starting" id="statusBadge">
+            <span class="dot"></span>
+            <span id="statusText">Starting browser...</span>
+          </span>
+        </div>
+        <div class="session-actions">
+          <button class="btn-confirm" onclick="confirmAuth()">I've completed login</button>
+          <button class="btn-cancel" onclick="cancelSession()">Cancel</button>
+        </div>
+      </div>
+      <div class="vnc-wrapper">
+        <iframe id="vncFrame" src=""></iframe>
+        <div class="current-url" id="currentUrl">Waiting...</div>
+      </div>
+    </div>
+
+    <!-- Result View -->
+    <div class="result-view" id="resultView">
+      <div class="result-icon" id="resultIcon"></div>
+      <div class="result-title" id="resultTitle"></div>
+      <p class="result-desc" id="resultDesc"></p>
+      <button class="btn-restart" onclick="resetApp()">Try again</button>
+    </div>
+  </div>
+
+  <script>
+    let pollInterval = null;
+
+    async function startSession() {
+      const btn = document.getElementById('authBtn');
+      btn.disabled = true;
+      btn.textContent = 'Starting...';
+
+      const url = document.getElementById('portalUrl').value;
+
+      try {
+        const resp = await fetch('/api/session/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+          alert('Failed to start session: ' + data.error);
+          btn.disabled = false;
+          btn.textContent = 'Authorize university account';
+          return;
+        }
+
+        // Show session view
+        document.getElementById('startView').style.display = 'none';
+        document.getElementById('sessionView').style.display = 'block';
+
+        // Load noVNC in iframe
+        const vncUrl = `http://${window.location.hostname}:6080/vnc_lite.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000`;
+        document.getElementById('vncFrame').src = vncUrl;
+
+        // Start polling status
+        pollInterval = setInterval(pollStatus, 2000);
+      } catch (err) {
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Authorize university account';
+      }
+    }
+
+    async function pollStatus() {
+      try {
+        const resp = await fetch('/api/session/status');
+        const data = await resp.json();
+
+        updateStatusBadge(data.status);
+        document.getElementById('currentUrl').textContent = data.url || 'Waiting...';
+
+        if (data.status === 'success') {
+          clearInterval(pollInterval);
+          showResult(true);
+        } else if (data.status === 'failed') {
+          clearInterval(pollInterval);
+          showResult(false);
+        }
+      } catch {}
+    }
+
+    function updateStatusBadge(status) {
+      const badge = document.getElementById('statusBadge');
+      const text = document.getElementById('statusText');
+
+      badge.className = 'status-badge';
+      switch (status) {
+        case 'starting':
+          badge.classList.add('status-starting');
+          text.textContent = 'Starting browser...';
+          break;
+        case 'active':
+          badge.classList.add('status-active');
+          text.textContent = 'Browser active — complete login below';
+          break;
+        case 'success':
+          badge.classList.add('status-success');
+          text.textContent = 'Authorization successful';
+          break;
+        case 'failed':
+          badge.classList.add('status-failed');
+          text.textContent = 'Session failed';
+          break;
+        default:
+          badge.classList.add('status-starting');
+          text.textContent = status || 'Unknown';
+      }
+    }
+
+    async function confirmAuth() {
+      await fetch('/api/session/confirm', { method: 'POST' });
+      clearInterval(pollInterval);
+      showResult(true);
+    }
+
+    async function cancelSession() {
+      clearInterval(pollInterval);
+      await fetch('/api/session/stop', { method: 'POST' });
+      showResult(false);
+    }
+
+    function showResult(success) {
+      document.getElementById('sessionView').style.display = 'none';
+      document.getElementById('resultView').style.display = 'flex';
+      document.getElementById('vncFrame').src = '';
+
+      if (success) {
+        document.getElementById('resultIcon').textContent = '\u2705';
+        document.getElementById('resultTitle').textContent = 'Authorization Successful';
+        document.getElementById('resultDesc').textContent =
+          'The university account has been connected. In production, session cookies/tokens would be captured here for schedule access.';
+      } else {
+        document.getElementById('resultIcon').textContent = '\u274C';
+        document.getElementById('resultTitle').textContent = 'Authorization Failed';
+        document.getElementById('resultDesc').textContent =
+          'The session ended without successful authentication. You can try again.';
+      }
+    }
+
+    async function resetApp() {
+      await fetch('/api/session/stop', { method: 'POST' }).catch(() => {});
+      document.getElementById('resultView').style.display = 'none';
+      document.getElementById('startView').style.display = 'flex';
+      document.getElementById('authBtn').disabled = false;
+      document.getElementById('authBtn').textContent = 'Authorize university account';
+    }
+  </script>
+</body>
+</html>

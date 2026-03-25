@@ -1,0 +1,15 @@
+services:
+  web:
+    build: ./web
+    ports:
+      - "3000:3000"
+    depends_on:
+      - browser
+    environment:
+      - BROWSER_API=http://browser:3001
+
+  browser:
+    build: ./browser
+    ports:
+      - "6080:6080"
+    shm_size: "2g"
