@@ -2,10 +2,22 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
+app.set('trust proxy', true);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const BROWSER_API = process.env.BROWSER_API || 'http://browser:3001';
+const VNC_DOMAIN = process.env.VNC_DOMAIN || '';
+
+app.get('/app-config.js', (req, res) => {
+  const protocol = req.secure ? 'https' : 'http';
+  const vncOrigin = VNC_DOMAIN
+    ? `${protocol}://${VNC_DOMAIN}`
+    : `${protocol}://${req.hostname}${protocol === 'https' ? '' : ':6080'}`;
+
+  res.type('application/javascript');
+  res.send(`window.APP_CONFIG = ${JSON.stringify({ vncOrigin })};`);
+});
 
 async function proxyToBrowser(method, endpoint, body) {
   const opts = {

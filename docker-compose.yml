@@ -21,6 +21,7 @@ services:
       - browser
     environment:
       - BROWSER_API=http://browser:3001
+      - VNC_DOMAIN=${VNC_DOMAIN}
 
   browser:
     build: ./browser

@@ -297,6 +297,7 @@
     </div>
   </div>
 
+  <script src="/app-config.js"></script>
   <script>
     let pollInterval = null;
     let lastLogLength = 0;
@@ -334,7 +335,9 @@
         document.getElementById('aiLog').innerHTML = '<div class="log-entry">AI navigator started...</div>';
         lastLogLength = 0;
 
-        const vncUrl = `http://${window.location.hostname}:6080/vnc_lite.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000`;
+        const vncPath = 'vnc_lite.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000';
+        const vncOrigin = window.APP_CONFIG?.vncOrigin || `${window.location.protocol}//${window.location.hostname}:6080`;
+        const vncUrl = `${vncOrigin}/${vncPath}`;
         document.getElementById('vncFrame').src = vncUrl;
 
         pollInterval = setInterval(pollStatus, 1500);
