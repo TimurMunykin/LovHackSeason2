@@ -2,7 +2,13 @@ const OpenAI = require('openai');
 
 const client = new OpenAI();
 
-const SYSTEM_PROMPT = `You are a browser navigation agent. Your task is to navigate a university website to find the login/sign-in page where a student would enter their credentials (username/email and password).
+const MAX_STEPS = 12;
+
+const GOALS = {
+  login: {
+    label: 'login page',
+    userPrompt: 'What should I do on this page to reach the login form?',
+    systemPrompt: `You are a browser navigation agent. Your task is to navigate a university website to find the login/sign-in page where a student would enter their credentials (username/email and password).
 
 You will receive a screenshot of the current page. Analyze it and decide what to do next.
 
@@ -11,7 +17,7 @@ IMPORTANT RULES:
 - If you see a login FORM with input fields for username/email and password, the task is DONE.
 - If you see an SSO/CAS redirect page or Microsoft/Google login page, the task is DONE.
 - Do NOT type anything into fields. Just navigate to the login page.
-- Be efficient — pick the most obvious login link first.
+- Be efficient - pick the most obvious login link first.
 - If the page has a cookie consent banner, dismiss it first.
 
 Respond with EXACTLY one JSON object, no other text:
@@ -26,9 +32,37 @@ If you need to click by position (no clear text):
 {"action": "click_coords", "x": 500, "y": 300, "reason": "what you're clicking"}
 
 If you're stuck or the page seems wrong:
-{"action": "fail", "reason": "why navigation failed"}`;
+{"action": "fail", "reason": "why navigation failed"}`,
+  },
+  schedule: {
+    label: 'schedule page',
+    userPrompt: 'What should I do on this page to reach the student schedule or timetable?',
+    systemPrompt: `You are a browser navigation agent. Your task is to navigate an already-authenticated university portal to find the student's schedule page.
 
-const MAX_STEPS = 12;
+You will receive a screenshot of the current page. Analyze it and decide what to do next.
+
+IMPORTANT RULES:
+- Look for sections or links like "Schedule", "Timetable", "Classes", "My Schedule", "My Classes", "Calendar", "Lessons", "Courses", "Study Plan", "Academic", or the Russian equivalents like "Расписание", "Занятия", "Календарь".
+- If you see a page that clearly contains a timetable, calendar, lesson list, or table of classes, the task is DONE.
+- Prefer clicking clear navigation elements rather than guessing.
+- Do NOT log out, do NOT change settings, do NOT type into fields unless there is an obvious search field specifically for finding schedule content.
+- If the page has a cookie or modal blocking navigation, dismiss it first.
+
+Respond with EXACTLY one JSON object, no other text:
+
+If the schedule page is found:
+{"action": "done", "reason": "description of the schedule page"}
+
+If you need to click something:
+{"action": "click", "target": "exact visible text of the link/button to click"}
+
+If you need to click by position (no clear text):
+{"action": "click_coords", "x": 500, "y": 300, "reason": "what you're clicking"}
+
+If you're stuck or the page seems wrong:
+{"action": "fail", "reason": "why navigation failed"}`,
+  },
+};
 
 class AiNavigator {
   constructor() {
@@ -36,13 +70,18 @@ class AiNavigator {
     this.running = false;
   }
 
-  async navigate(page, onStep) {
+  async navigate(page, goalName, onStep) {
+    const goal = GOALS[goalName];
+    if (!goal) {
+      throw new Error(`Unknown navigation goal: ${goalName}`);
+    }
+
     this.running = true;
     this.steps = [];
 
     for (let i = 0; i < MAX_STEPS && this.running; i++) {
       const stepNum = i + 1;
-      onStep({ step: stepNum, phase: 'screenshot', message: `Step ${stepNum}: Analyzing page...` });
+      onStep({ step: stepNum, phase: 'screenshot', message: `Step ${stepNum}: Analyzing page for ${goal.label}...` });
 
       await page.waitForLoadState('domcontentloaded').catch(() => {});
       await page.waitForTimeout(1500);
@@ -52,12 +91,12 @@ class AiNavigator {
 
       let action;
       try {
-        onStep({ step: stepNum, phase: 'thinking', message: `Step ${stepNum}: AI is deciding next action...` });
-        action = await this.askGPT(base64);
-        onStep({ step: stepNum, phase: 'action', message: `Step ${stepNum}: ${this.describeAction(action)}` });
+        onStep({ step: stepNum, phase: 'thinking', message: `Step ${stepNum}: AI is deciding the next action...` });
+        action = await this.askGPT(base64, goal);
+        onStep({ step: stepNum, phase: 'action', message: `Step ${stepNum}: ${this.describeAction(action, goal)}` });
       } catch (err) {
         this.steps.push({ step: stepNum, error: err.message });
-        onStep({ step: stepNum, phase: 'error', message: `Step ${stepNum}: AI error — ${err.message}` });
+        onStep({ step: stepNum, phase: 'error', message: `Step ${stepNum}: AI error - ${err.message}` });
         continue;
       }
 
@@ -74,26 +113,29 @@ class AiNavigator {
       try {
         await this.executeAction(page, action);
       } catch (err) {
-        onStep({ step: stepNum, phase: 'error', message: `Step ${stepNum}: Click failed — ${err.message}` });
+        onStep({ step: stepNum, phase: 'error', message: `Step ${stepNum}: Action failed - ${err.message}` });
         this.steps.push({ step: stepNum, error: `Action failed: ${err.message}` });
       }
     }
 
-    return { success: false, reason: 'Max navigation steps reached', steps: this.steps };
+    return { success: false, reason: `Max navigation steps reached while finding ${goal.label}`, steps: this.steps };
   }
 
   stop() {
     this.running = false;
   }
 
-  async askGPT(screenshotBase64) {
+  async askGPT(screenshotBase64, goal) {
     const response = await client.responses.create({
       model: 'gpt-5.4-mini',
       max_output_tokens: 256,
       reasoning: { effort: 'none' },
       text: { verbosity: 'low' },
       input: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        {
+          role: 'system',
+          content: [{ type: 'input_text', text: goal.systemPrompt }],
+        },
         {
           role: 'user',
           content: [
@@ -104,7 +146,7 @@ class AiNavigator {
             },
             {
               type: 'input_text',
-              text: 'What should I do on this page to reach the login form?',
+              text: goal.userPrompt,
             },
           ],
         },
@@ -137,14 +179,14 @@ class AiNavigator {
     }
   }
 
-  describeAction(action) {
+  describeAction(action, goal) {
     switch (action.action) {
       case 'done':
-        return `Login page found! ${action.reason}`;
+        return `${goal.label} found! ${action.reason}`;
       case 'click':
         return `Clicking "${action.target}"`;
       case 'click_coords':
-        return `Clicking at (${action.x}, ${action.y}) — ${action.reason}`;
+        return `Clicking at (${action.x}, ${action.y}) - ${action.reason}`;
       case 'fail':
         return `Navigation failed: ${action.reason}`;
       default:

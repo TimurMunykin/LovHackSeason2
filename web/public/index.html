@@ -79,6 +79,8 @@
     .status-badge .dot { width: 8px; height: 8px; border-radius: 50%; }
     .status-navigating { background: #1e2a3a; color: #60a5fa; }
     .status-navigating .dot { background: #60a5fa; animation: pulse 1s infinite; }
+    .status-extracting { background: #2c2340; color: #c4b5fd; }
+    .status-extracting .dot { background: #c4b5fd; animation: pulse 1s infinite; }
     .status-active { background: #1e3a2f; color: #4ade80; }
     .status-active .dot { background: #4ade80; animation: pulse 2s infinite; }
     .status-starting { background: #2e2a1e; color: #facc15; }
@@ -163,6 +165,51 @@
     .result-icon { font-size: 72px; line-height: 1; }
     .result-title { font-size: 28px; font-weight: 700; }
     .result-desc { color: #94a3b8; text-align: center; max-width: 400px; }
+    .result-meta {
+      width: 100%;
+      max-width: 920px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+      display: none;
+    }
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .meta-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .meta-card .label { color: #94a3b8; font-size: 12px; margin-bottom: 4px; }
+    .meta-card .value { color: #e2e8f0; font-size: 14px; word-break: break-word; }
+    .json-block {
+      width: 100%;
+      background: #0f172a;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px;
+      overflow: auto;
+      max-height: 300px;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .debug-shot {
+      width: 100%;
+      max-height: 280px;
+      object-fit: contain;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
     .btn-restart {
       padding: 12px 28px;
       background: #334155;
@@ -224,6 +271,28 @@
       <div class="result-icon" id="resultIcon"></div>
       <div class="result-title" id="resultTitle"></div>
       <p class="result-desc" id="resultDesc"></p>
+      <div class="result-meta" id="resultMeta">
+        <div class="result-grid">
+          <div class="meta-card">
+            <div class="label">Extraction source</div>
+            <div class="value" id="metaSource">-</div>
+          </div>
+          <div class="meta-card">
+            <div class="label">Entries found</div>
+            <div class="value" id="metaCount">0</div>
+          </div>
+          <div class="meta-card">
+            <div class="label">Schedule URL</div>
+            <div class="value" id="metaUrl">-</div>
+          </div>
+          <div class="meta-card">
+            <div class="label">Schedule title</div>
+            <div class="value" id="metaTitle">-</div>
+          </div>
+        </div>
+        <div class="json-block" id="resultJson"></div>
+        <img class="debug-shot" id="debugShot" alt="Schedule debug screenshot" style="display:none">
+      </div>
       <button class="btn-restart" onclick="resetApp()">Try again</button>
     </div>
   </div>
@@ -304,10 +373,10 @@
 
         if (data.status === 'success') {
           clearInterval(pollInterval);
-          showResult(true);
+          showResult(true, data.result);
         } else if (data.status === 'failed') {
           clearInterval(pollInterval);
-          showResult(false);
+          showResult(false, data.result);
         }
       } catch {}
     }
@@ -322,8 +391,17 @@
           text.textContent = 'Starting browser...';
           break;
         case 'navigating':
+        case 'navigating_login':
           badge.classList.add('status-navigating');
           text.textContent = 'AI is navigating to login page...';
+          break;
+        case 'navigating_schedule':
+          badge.classList.add('status-navigating');
+          text.textContent = 'AI is finding the schedule page...';
+          break;
+        case 'extracting':
+          badge.classList.add('status-extracting');
+          text.textContent = 'Extracting schedule data...';
           break;
         case 'active':
           badge.classList.add('status-active');
@@ -345,8 +423,6 @@
 
     async function confirmAuth() {
       await fetch('/api/session/confirm', { method: 'POST' });
-      clearInterval(pollInterval);
-      showResult(true);
     }
 
     async function cancelSession() {
@@ -355,21 +431,35 @@
       showResult(false);
     }
 
-    function showResult(success) {
+    function showResult(success, result = {}) {
       document.getElementById('sessionView').style.display = 'none';
       document.getElementById('resultView').style.display = 'flex';
       document.getElementById('vncFrame').src = '';
+      document.getElementById('resultMeta').style.display = success ? 'block' : 'none';
 
       if (success) {
         document.getElementById('resultIcon').textContent = '\u2705';
-        document.getElementById('resultTitle').textContent = 'Authorization Successful';
+        document.getElementById('resultTitle').textContent = 'Schedule Extraction Successful';
         document.getElementById('resultDesc').textContent =
-          'University account connected. In production, session cookies/tokens would be captured for calendar access.';
+          'The agent found the schedule page, captured a debug screenshot, and extracted schedule data from page data.';
+        document.getElementById('metaSource').textContent = result.extractionSource || '-';
+        document.getElementById('metaCount').textContent = Array.isArray(result.scheduleJson) ? result.scheduleJson.length : 0;
+        document.getElementById('metaUrl').textContent = result.debug?.scheduleUrl || '-';
+        document.getElementById('metaTitle').textContent = result.debug?.scheduleTitle || '-';
+        document.getElementById('resultJson').textContent = JSON.stringify(result.scheduleJson || [], null, 2);
+
+        const debugShot = document.getElementById('debugShot');
+        if (result.screenshotBase64) {
+          debugShot.src = `data:image/jpeg;base64,${result.screenshotBase64}`;
+          debugShot.style.display = 'block';
+        } else {
+          debugShot.style.display = 'none';
+        }
       } else {
         document.getElementById('resultIcon').textContent = '\u274C';
-        document.getElementById('resultTitle').textContent = 'Authorization Failed';
+        document.getElementById('resultTitle').textContent = 'Run Failed';
         document.getElementById('resultDesc').textContent =
-          'The session ended without successful authentication. You can try again.';
+          result.error || 'The session ended before schedule extraction completed. You can try again.';
       }
     }
 
@@ -379,6 +469,10 @@
       document.getElementById('startView').style.display = 'flex';
       document.getElementById('authBtn').disabled = false;
       document.getElementById('authBtn').textContent = 'Authorize university account';
+      document.getElementById('resultMeta').style.display = 'none';
+      document.getElementById('resultJson').textContent = '';
+      document.getElementById('debugShot').src = '';
+      document.getElementById('debugShot').style.display = 'none';
       lastLogLength = 0;
     }
   </script>
