@@ -5,53 +5,325 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — UniCal</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .animate-pulse-slow { animation: pulse 2s infinite; }
+  </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
 
+  <!-- Header -->
   <header class="border-b border-slate-800">
-    <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
       <a href="/dashboard" class="text-xl font-bold tracking-tight">UniCal</a>
       <div class="flex items-center gap-4">
-        <div id="user-info" class="flex items-center gap-3">
-          <img id="avatar" class="w-8 h-8 rounded-full hidden" alt="avatar">
-          <span id="user-name" class="text-sm text-slate-300"></span>
-        </div>
-        <a href="/auth/logout"
-           class="text-sm text-slate-400 hover:text-slate-200 transition">
-          Log out
-        </a>
+        <img id="avatar" class="w-8 h-8 rounded-full hidden" alt="">
+        <span id="user-name" class="text-sm text-slate-300"></span>
+        <a href="/auth/logout" class="text-sm text-slate-400 hover:text-slate-200 transition">Log out</a>
       </div>
     </div>
   </header>
 
-  <main class="flex-1 flex items-center justify-center">
-    <div class="text-center px-6">
-      <h1 class="text-3xl font-bold mb-4">Welcome to UniCal</h1>
-      <p class="text-slate-400 text-lg mb-8">
-        Your schedule assistant is coming soon. Stay tuned!
-      </p>
-      <div class="bg-slate-800/50 rounded-xl p-8 border border-slate-700/50 max-w-md mx-auto">
-        <p class="text-slate-500 text-sm">
-          This is where your calendar tools will live.
-        </p>
+  <main class="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
+
+    <!-- Start View -->
+    <div id="startView">
+      <h1 class="text-2xl font-bold mb-2">Extract your schedule</h1>
+      <p class="text-slate-400 mb-6">Enter your university portal URL. Our AI agent will navigate to find your schedule.</p>
+      <div class="flex gap-3 max-w-xl">
+        <input id="urlInput" type="url" placeholder="https://portal.university.edu"
+          class="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+        <button onclick="startSession()" id="startBtn"
+          class="px-6 py-3 bg-indigo-600 rounded-lg font-medium hover:bg-indigo-500 transition text-sm whitespace-nowrap">
+          Start
+        </button>
       </div>
     </div>
+
+    <!-- Session View -->
+    <div id="sessionView" class="hidden">
+      <!-- Status bar -->
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div class="flex items-center gap-3">
+          <span id="statusDot" class="w-3 h-3 rounded-full bg-yellow-400 animate-pulse-slow"></span>
+          <span id="statusText" class="text-sm font-medium">Starting...</span>
+          <span id="currentUrl" class="text-xs text-slate-500 truncate max-w-xs"></span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="confirmLogin()" id="confirmBtn"
+            class="hidden px-4 py-2 bg-emerald-600 rounded-lg text-sm font-medium hover:bg-emerald-500 transition">
+            I've completed login
+          </button>
+          <button onclick="stopSession()"
+            class="px-4 py-2 bg-red-600/80 rounded-lg text-sm font-medium hover:bg-red-500 transition">
+            Stop
+          </button>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-4">
+        <!-- VNC Browser View -->
+        <div class="lg:col-span-2">
+          <div class="bg-black rounded-xl overflow-hidden border border-slate-700">
+            <iframe id="vncFrame" src="" class="w-full border-none" style="height: 65vh;"></iframe>
+          </div>
+        </div>
+
+        <!-- AI Log -->
+        <div class="flex flex-col">
+          <h3 class="text-sm font-medium text-slate-400 mb-2">AI Agent Log</h3>
+          <div id="aiLog" class="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 overflow-y-auto max-h-[500px] text-xs font-mono space-y-1">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result View -->
+    <div id="resultView" class="hidden">
+      <div class="text-center mb-8">
+        <div id="resultIcon" class="text-6xl mb-4"></div>
+        <h2 id="resultTitle" class="text-2xl font-bold mb-2"></h2>
+        <p id="resultDesc" class="text-slate-400"></p>
+      </div>
+
+      <div id="resultMeta" class="hidden max-w-4xl mx-auto">
+        <div class="grid sm:grid-cols-4 gap-3 mb-4">
+          <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+            <div class="text-xs text-slate-500 mb-1">Source</div>
+            <div id="metaSource" class="text-sm">-</div>
+          </div>
+          <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+            <div class="text-xs text-slate-500 mb-1">Entries</div>
+            <div id="metaCount" class="text-sm">0</div>
+          </div>
+          <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+            <div class="text-xs text-slate-500 mb-1">URL</div>
+            <div id="metaUrl" class="text-sm truncate">-</div>
+          </div>
+          <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+            <div class="text-xs text-slate-500 mb-1">Title</div>
+            <div id="metaTitle" class="text-sm truncate">-</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 mb-4">
+          <h3 class="text-sm font-medium text-slate-400 mb-2">Extracted Schedule</h3>
+          <pre id="resultJson" class="text-xs overflow-auto max-h-80 text-slate-300"></pre>
+        </div>
+
+        <img id="debugShot" class="hidden w-full max-h-64 object-contain bg-black rounded-xl border border-slate-700" alt="Debug screenshot">
+      </div>
+
+      <div class="text-center mt-6">
+        <button onclick="resetApp()" class="px-6 py-3 bg-slate-700 rounded-lg font-medium hover:bg-slate-600 transition">
+          Try again
+        </button>
+      </div>
+    </div>
+
   </main>
 
   <script>
-    fetch('/auth/me')
-      .then(r => r.json())
-      .then(user => {
-        document.getElementById('user-name').textContent = user.name;
-        if (user.avatarUrl) {
-          const img = document.getElementById('avatar');
-          img.src = user.avatarUrl;
-          img.classList.remove('hidden');
+    let eventSource = null;
+    let currentVncPort = null;
+
+    // Load user info
+    fetch('/auth/me').then(r => r.json()).then(user => {
+      document.getElementById('user-name').textContent = user.name;
+      if (user.avatarUrl) {
+        const img = document.getElementById('avatar');
+        img.src = user.avatarUrl;
+        img.classList.remove('hidden');
+      }
+    }).catch(() => { window.location.href = '/'; });
+
+    // Check for existing session on load
+    fetch('/api/browser/status').then(r => {
+      if (r.ok) return r.json();
+      return null;
+    }).then(data => {
+      if (data && data.status && !['idle'].includes(data.status)) {
+        if (data.vncPort) loadVnc(data.vncPort);
+        showSessionView();
+        updateFromStatus(data);
+        connectSSE();
+        if (['success', 'failed'].includes(data.status)) {
+          showResult(data.status === 'success', data.result);
         }
-      })
-      .catch(() => {
-        window.location.href = '/';
+      }
+    }).catch(() => {});
+
+    function getVncUrl(port) {
+      const proto = location.protocol === 'https:' ? 'https' : 'http';
+      const host = location.hostname;
+      const vncPath = 'vnc_lite.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000';
+      return `${proto}://${host}:${port}/${vncPath}`;
+    }
+
+    function loadVnc(port) {
+      currentVncPort = port;
+      document.getElementById('vncFrame').src = getVncUrl(port);
+    }
+
+    async function startSession() {
+      const url = document.getElementById('urlInput').value.trim();
+      if (!url) return alert('Please enter a URL');
+
+      const btn = document.getElementById('startBtn');
+      btn.disabled = true;
+      btn.textContent = 'Starting...';
+
+      try {
+        const resp = await fetch('/api/browser/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const data = await resp.json();
+        if (data.error) {
+          alert('Error: ' + data.error);
+          btn.disabled = false;
+          btn.textContent = 'Start';
+          return;
+        }
+        if (data.vncPort) loadVnc(data.vncPort);
+        showSessionView();
+        connectSSE();
+      } catch (err) {
+        alert('Failed: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Start';
+      }
+    }
+
+    function showSessionView() {
+      document.getElementById('startView').classList.add('hidden');
+      document.getElementById('resultView').classList.add('hidden');
+      document.getElementById('sessionView').classList.remove('hidden');
+    }
+
+    function connectSSE() {
+      if (eventSource) eventSource.close();
+      eventSource = new EventSource('/api/browser/events');
+
+      eventSource.addEventListener('status', (e) => {
+        const data = JSON.parse(e.data);
+        updateStatusUI(data.status, data.url);
       });
+
+      eventSource.addEventListener('log', (e) => {
+        const entry = JSON.parse(e.data);
+        appendLog(entry);
+      });
+
+      eventSource.addEventListener('error', () => {
+        setTimeout(() => {
+          fetch('/api/browser/status').then(r => r.ok ? r.json() : null).then(data => {
+            if (data && ['success', 'failed'].includes(data.status)) {
+              showResult(data.status === 'success', data.result);
+            }
+          }).catch(() => {});
+        }, 2000);
+      });
+    }
+
+    function updateStatusUI(status, url) {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      const confirmBtn = document.getElementById('confirmBtn');
+      document.getElementById('currentUrl').textContent = url || '';
+
+      const styles = {
+        starting:            { color: 'bg-yellow-400', label: 'Starting browser...',        pulse: true },
+        navigating_login:    { color: 'bg-blue-400',   label: 'AI finding login page...',   pulse: true },
+        active:              { color: 'bg-emerald-400', label: 'Your turn — log in below',  pulse: true },
+        navigating_schedule: { color: 'bg-blue-400',   label: 'AI finding schedule...',     pulse: true },
+        extracting:          { color: 'bg-purple-400',  label: 'Extracting schedule data...', pulse: true },
+        success:             { color: 'bg-emerald-400', label: 'Done!',                     pulse: false },
+        failed:              { color: 'bg-red-400',    label: 'Failed',                     pulse: false },
+      };
+
+      const s = styles[status] || { color: 'bg-slate-400', label: status, pulse: false };
+      dot.className = `w-3 h-3 rounded-full ${s.color}` + (s.pulse ? ' animate-pulse-slow' : '');
+      text.textContent = s.label;
+      confirmBtn.classList.toggle('hidden', status !== 'active');
+
+      if (status === 'success' || status === 'failed') {
+        fetch('/api/browser/status').then(r => r.json()).then(data => {
+          showResult(status === 'success', data.result);
+        }).catch(() => {});
+      }
+    }
+
+    function updateFromStatus(data) {
+      updateStatusUI(data.status, data.url);
+      if (data.aiLog) data.aiLog.forEach(appendLog);
+    }
+
+    function appendLog(entry) {
+      const log = document.getElementById('aiLog');
+      const div = document.createElement('div');
+      const colors = { action: 'text-blue-400', error: 'text-red-400', handoff: 'text-emerald-400', thinking: 'text-purple-400' };
+      div.className = colors[entry.phase] || 'text-slate-400';
+      div.textContent = entry.message || '';
+      if (entry.message) log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function confirmLogin() {
+      fetch('/api/browser/confirm', { method: 'POST' });
+    }
+
+    async function stopSession() {
+      if (eventSource) { eventSource.close(); eventSource = null; }
+      await fetch('/api/browser/stop', { method: 'POST' }).catch(() => {});
+      resetApp();
+    }
+
+    function showResult(success, result) {
+      if (eventSource) { eventSource.close(); eventSource = null; }
+      document.getElementById('sessionView').classList.add('hidden');
+      document.getElementById('vncFrame').src = '';
+      document.getElementById('resultView').classList.remove('hidden');
+
+      document.getElementById('resultIcon').textContent = success ? '\u2705' : '\u274C';
+      document.getElementById('resultTitle').textContent = success ? 'Schedule Extracted' : 'Extraction Failed';
+      document.getElementById('resultDesc').textContent = success
+        ? `Found ${result?.scheduleJson?.length || 0} schedule entries.`
+        : (result?.error || 'Could not extract schedule data.');
+
+      const meta = document.getElementById('resultMeta');
+      if (success && result) {
+        meta.classList.remove('hidden');
+        document.getElementById('metaSource').textContent = result.extractionSource || '-';
+        document.getElementById('metaCount').textContent = result.scheduleJson?.length || 0;
+        document.getElementById('metaUrl').textContent = result.debug?.scheduleUrl || '-';
+        document.getElementById('metaTitle').textContent = result.debug?.scheduleTitle || '-';
+        document.getElementById('resultJson').textContent = JSON.stringify(result.scheduleJson || [], null, 2);
+
+        const shot = document.getElementById('debugShot');
+        if (result.screenshotBase64) {
+          shot.src = 'data:image/jpeg;base64,' + result.screenshotBase64;
+          shot.classList.remove('hidden');
+        }
+      } else {
+        meta.classList.add('hidden');
+      }
+    }
+
+    function resetApp() {
+      document.getElementById('resultView').classList.add('hidden');
+      document.getElementById('sessionView').classList.add('hidden');
+      document.getElementById('startView').classList.remove('hidden');
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('startBtn').textContent = 'Start';
+      document.getElementById('aiLog').innerHTML = '';
+      document.getElementById('vncFrame').src = '';
+      document.getElementById('debugShot').src = '';
+      document.getElementById('debugShot').classList.add('hidden');
+      document.getElementById('resultMeta').classList.add('hidden');
+      currentVncPort = null;
+    }
   </script>
 
 </body>

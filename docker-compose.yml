@@ -9,6 +9,13 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - SESSION_SECRET=${SESSION_SECRET}
       - BASE_URL=${BASE_URL}
+      - BROWSER_API=http://browser:3001
+
+  browser:
+    shm_size: "2g"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
 
   postgres:
     image: postgres:16-alpine

@@ -4,6 +4,7 @@ const PgSession = require('connect-pg-simple')(session);
 const passport = require('passport');
 const path = require('path');
 const authRoutes = require('./routes/auth');
+const browserRoutes = require('./routes/browser');
 const { requireAuth } = require('./middleware/auth');
 
 const app = express();
@@ -34,6 +35,7 @@ app.use(passport.session());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/auth', authRoutes);
+app.use('/api/browser', requireAuth, browserRoutes);
 
 app.get('/dashboard', requireAuth, (_req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));

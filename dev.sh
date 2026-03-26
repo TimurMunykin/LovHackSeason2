@@ -22,11 +22,16 @@ export POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-devpassword}
 export SESSION_SECRET=${SESSION_SECRET:-dev-secret-change-me}
 export BASE_URL=${BASE_URL:-http://localhost:3000}
 
-# Google OAuth is required
-if [ -z "$GOOGLE_CLIENT_ID" ] || [ -z "$GOOGLE_CLIENT_SECRET" ]; then
-  echo "ERROR: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required."
+# Required env vars
+missing=""
+[ -z "$GOOGLE_CLIENT_ID" ] && missing="$missing GOOGLE_CLIENT_ID"
+[ -z "$GOOGLE_CLIENT_SECRET" ] && missing="$missing GOOGLE_CLIENT_SECRET"
+[ -z "$OPENAI_API_KEY" ] && missing="$missing OPENAI_API_KEY"
+
+if [ -n "$missing" ]; then
+  echo "ERROR: Missing required env vars:$missing"
   echo ""
-  echo "Set them in .env or export before running:"
+  echo "Set them in .env:"
   echo "  cp .env.example .env   # then fill in values"
   echo "  ./dev.sh"
   exit 1

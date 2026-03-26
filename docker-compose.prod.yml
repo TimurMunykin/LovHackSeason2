@@ -18,6 +18,11 @@ services:
     environment:
       - NODE_ENV=production
 
+  browser:
+    image: ${DOCKER_REPO_PREFIX}/lovhack-browser:${IMAGE_TAG:-latest}
+    ports:
+      - "6180-6190:6180-6190"
+
   postgres:
     volumes:
       - pgdata:/var/lib/postgresql/data

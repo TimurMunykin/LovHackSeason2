@@ -6,6 +6,12 @@ services:
     environment:
       - NODE_ENV=development
 
+  browser:
+    build: ./browser
+    ports:
+      - "3001:3001"
+      - "6180-6190:6180-6190"
+
   postgres:
     ports:
       - "5432:5432"

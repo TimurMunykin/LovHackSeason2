@@ -19,7 +19,7 @@ set -a
 . ./.env
 set +a
 
-required_vars=(GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET SESSION_SECRET POSTGRES_PASSWORD DOCKER_REPO_PREFIX APP_DOMAIN)
+required_vars=(GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET SESSION_SECRET POSTGRES_PASSWORD DOCKER_REPO_PREFIX APP_DOMAIN OPENAI_API_KEY)
 for var in "${required_vars[@]}"; do
   if [ -z "${!var:-}" ]; then
     echo "ERROR: $var is not set in .env"
