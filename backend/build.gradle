@@ -1,0 +1,82 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.3'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springdoc.openapi-gradle-plugin' version '1.9.0'
+}
+
+group = 'com.unical'
+version = '0.1.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot starters
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // PostgreSQL + Flyway
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    // Playwright (browser automation)
+    implementation 'com.microsoft.playwright:playwright:1.50.0'
+
+    // OpenAI Java SDK (official)
+    implementation 'com.openai:openai-java:2.2.0'
+
+    // Jsoup (HTML pre-processing)
+    implementation 'org.jsoup:jsoup:1.18.3'
+
+    // Jackson (transitive via Spring Boot, explicit for ObjectMapper injection)
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+    // Swagger / OpenAPI
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0'
+
+    // H2 — used only by the openapi Spring profile so generateOpenApiDocs
+    // works without a running Postgres instance
+    runtimeOnly 'com.h2database:h2'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.named('compileJava') {
+    options.encoding = 'UTF-8'
+}
+
+// ── OpenAPI spec generation ───────────────────────────────────────────────────
+// Run:  ./gradlew generateOpenApiDocs
+// Output: openapi.json (project root)
+//
+// Uses the 'openapi' Spring profile which swaps Postgres for an in-memory H2
+// database, so no external services need to be running.
+openApi {
+    apiDocsUrl     = 'http://localhost:3001/v3/api-docs'
+    outputDir      = layout.projectDirectory
+    outputFileName = 'openapi.json'
+    waitTimeInSeconds = 60
+    customBootRun {
+        args = ['--spring.profiles.active=openapi']
+    }
+}

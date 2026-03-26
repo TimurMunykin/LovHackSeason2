@@ -1,0 +1,47 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: unicaldb
+      POSTGRES_USER: unical
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unical -d unicaldb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/unicaldb
+      DB_USERNAME: unical
+      DB_PASSWORD: ${DB_PASSWORD:-change-me}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:3000}
+      BACKEND_HOST: ${BACKEND_HOST:-localhost}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      DISPLAY: ":99"
+      PLAYWRIGHT_BROWSERS_PATH: /opt/playwright-browsers
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    ports:
+      - "3001:3001"    # Spring Boot REST API
+      - "6080:6080"    # noVNC viewer
+    shm_size: "256m"   # Chromium needs shared memory
+
+volumes:
+  postgres_data:

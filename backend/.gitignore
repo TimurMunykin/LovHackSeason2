@@ -1,0 +1,10 @@
+.gradle/
+build/
+.env
+*.class
+out/
+.idea/
+*.iml
+.DS_Store
+openapi.json
+openapi.yaml
