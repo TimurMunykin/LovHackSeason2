@@ -2,6 +2,8 @@ const { Router } = require('express');
 
 const router = Router();
 const BROWSER_API = process.env.BROWSER_API || 'http://browser:3001';
+// In dev: http://localhost:3001, in prod: empty (same origin via Caddy)
+const BROWSER_PUBLIC_URL = process.env.BROWSER_PUBLIC_URL || '';
 
 async function proxy(method, path, body) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
@@ -10,12 +12,18 @@ async function proxy(method, path, body) {
   return resp.json();
 }
 
+function buildVncUrl(sessionId) {
+  const vncPath = 'vnc_lite.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000';
+  return `${BROWSER_PUBLIC_URL}/novnc/${vncPath}&path=vnc-ws/${sessionId}`;
+}
+
 router.post('/start', async (req, res) => {
   try {
     const data = await proxy('POST', '/sessions', {
       sessionId: req.user.id,
       url: req.body.url,
     });
+    data.vncUrl = buildVncUrl(req.user.id);
     res.json(data);
   } catch (err) {
     res.status(502).json({ error: 'Browser service unavailable', details: err.message });
@@ -25,6 +33,7 @@ router.post('/start', async (req, res) => {
 router.get('/status', async (req, res) => {
   try {
     const data = await proxy('GET', `/sessions/${req.user.id}`);
+    data.vncUrl = buildVncUrl(req.user.id);
     res.json(data);
   } catch (err) {
     res.status(502).json({ error: 'Browser service unavailable' });

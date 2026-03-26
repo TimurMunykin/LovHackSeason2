@@ -11,7 +11,6 @@ class BrowserSession {
     this.displayNum = displayNum;
     this.display = `:${displayNum}`;
     this.vncPort = 5900 + displayNum;
-    this.wsPort = 6080 + displayNum;
     this.browser = null;
     this.context = null;
     this.page = null;
@@ -40,15 +39,6 @@ class BrowserSession {
       '-rfbport', String(this.vncPort),
     ]);
     this.processes.push(vnc);
-
-    // Start websockify to bridge VNC to WebSocket
-    const ws = spawn('websockify', [
-      '--web', '/usr/share/novnc',
-      String(this.wsPort),
-      `localhost:${this.vncPort}`,
-    ]);
-    this.processes.push(ws);
-    await new Promise((r) => setTimeout(r, 500));
 
     // Launch visible browser on the virtual display
     this.browser = await chromium.launch({
@@ -202,7 +192,7 @@ class BrowserSession {
       title: this.pageTitle,
       aiLog: this.aiLog,
       result: this.result,
-      vncPort: this.wsPort,
+      sessionId: this.sessionId,
     };
   }
 

@@ -5,12 +5,12 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
+      - BROWSER_PUBLIC_URL=http://localhost:3001
 
   browser:
     build: ./browser
     ports:
       - "3001:3001"
-      - "6180-6190:6180-6190"
 
   postgres:
     ports:

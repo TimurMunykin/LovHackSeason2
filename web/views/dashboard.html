@@ -125,7 +125,6 @@
 
   <script>
     let eventSource = null;
-    let currentVncPort = null;
 
     // Load user info
     fetch('/auth/me').then(r => r.json()).then(user => {
@@ -143,7 +142,7 @@
       return null;
     }).then(data => {
       if (data && data.status && !['idle'].includes(data.status)) {
-        if (data.vncPort) loadVnc(data.vncPort);
+        if (data.vncUrl) loadVnc(data.vncUrl);
         showSessionView();
         updateFromStatus(data);
         connectSSE();
@@ -153,16 +152,8 @@
       }
     }).catch(() => {});
 
-    function getVncUrl(port) {
-      const proto = location.protocol === 'https:' ? 'https' : 'http';
-      const host = location.hostname;
-      const vncPath = 'vnc_lite.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000';
-      return `${proto}://${host}:${port}/${vncPath}`;
-    }
-
-    function loadVnc(port) {
-      currentVncPort = port;
-      document.getElementById('vncFrame').src = getVncUrl(port);
+    function loadVnc(url) {
+      document.getElementById('vncFrame').src = url;
     }
 
     async function startSession() {
@@ -186,7 +177,7 @@
           btn.textContent = 'Start';
           return;
         }
-        if (data.vncPort) loadVnc(data.vncPort);
+        if (data.vncUrl) loadVnc(data.vncUrl);
         showSessionView();
         connectSSE();
       } catch (err) {
@@ -322,7 +313,6 @@
       document.getElementById('debugShot').src = '';
       document.getElementById('debugShot').classList.add('hidden');
       document.getElementById('resultMeta').classList.add('hidden');
-      currentVncPort = null;
     }
   </script>
 

@@ -1,4 +1,15 @@
 {$APP_DOMAIN} {
   encode gzip zstd
-  reverse_proxy web:3000
+
+  handle /novnc/* {
+    reverse_proxy browser:3001
+  }
+
+  handle /vnc-ws/* {
+    reverse_proxy browser:3001
+  }
+
+  handle {
+    reverse_proxy web:3000
+  }
 }
