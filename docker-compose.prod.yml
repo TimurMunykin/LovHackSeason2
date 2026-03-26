@@ -1,0 +1,28 @@
+services:
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - APP_DOMAIN=${APP_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+  web:
+    image: ${DOCKER_REPO_PREFIX}/lovhack-web:${IMAGE_TAG:-latest}
+    environment:
+      - NODE_ENV=production
+
+  postgres:
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pgdata:

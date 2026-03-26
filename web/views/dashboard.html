@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — UniCal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+  <header class="border-b border-slate-800">
+    <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      <a href="/dashboard" class="text-xl font-bold tracking-tight">UniCal</a>
+      <div class="flex items-center gap-4">
+        <div id="user-info" class="flex items-center gap-3">
+          <img id="avatar" class="w-8 h-8 rounded-full hidden" alt="avatar">
+          <span id="user-name" class="text-sm text-slate-300"></span>
+        </div>
+        <a href="/auth/logout"
+           class="text-sm text-slate-400 hover:text-slate-200 transition">
+          Log out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 flex items-center justify-center">
+    <div class="text-center px-6">
+      <h1 class="text-3xl font-bold mb-4">Welcome to UniCal</h1>
+      <p class="text-slate-400 text-lg mb-8">
+        Your schedule assistant is coming soon. Stay tuned!
+      </p>
+      <div class="bg-slate-800/50 rounded-xl p-8 border border-slate-700/50 max-w-md mx-auto">
+        <p class="text-slate-500 text-sm">
+          This is where your calendar tools will live.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    fetch('/auth/me')
+      .then(r => r.json())
+      .then(user => {
+        document.getElementById('user-name').textContent = user.name;
+        if (user.avatarUrl) {
+          const img = document.getElementById('avatar');
+          img.src = user.avatarUrl;
+          img.classList.remove('hidden');
+        }
+      })
+      .catch(() => {
+        window.location.href = '/';
+      });
+  </script>
+
+</body>
+</html>
