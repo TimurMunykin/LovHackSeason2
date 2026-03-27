@@ -89,7 +89,7 @@ class AiNavigator {
   async askAI(screenshotBase64, goal, userMessage) {
     const response = await openai.chat.completions.create({
       model: MODEL,
-      max_tokens: 256,
+      max_completion_tokens: 256,
       messages: [
         { role: 'system', content: SYSTEM_PROMPTS[goal] },
         {
