@@ -30,7 +30,7 @@ class BrowserSession {
     // Start Xvfb virtual display
     const xvfb = spawn('Xvfb', [this.display, '-screen', '0', `${VIEWPORT.width}x${VIEWPORT.height}x24`]);
     this.processes.push(xvfb);
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 1500));
 
     // Start x11vnc on the display
     const vnc = spawn('x11vnc', [
@@ -60,8 +60,12 @@ class BrowserSession {
     this.currentUrl = this.page.url();
     this.pageTitle = await this.page.title();
 
-    // Start by looking for the schedule directly
-    this.findSchedule();
+    // Start by looking for the schedule directly (fire-and-forget, errors handled internally)
+    this.findSchedule().catch((err) => {
+      this.setStatus('failed');
+      this.result = { error: err.message };
+      this.addLog('error', `Unexpected error: ${err.message}`);
+    });
   }
 
   attachPageListeners() {

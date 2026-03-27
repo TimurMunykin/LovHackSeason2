@@ -30,8 +30,14 @@ Be concise. Return only the JSON object, no explanation.`,
 class AiNavigator {
   async navigate(page, goal, onStep) {
     for (let step = 0; step < MAX_STEPS; step++) {
-      const screenshot = await page.screenshot({ type: 'jpeg', quality: 75 });
-      const base64 = screenshot.toString('base64');
+      let base64;
+      try {
+        const screenshot = await page.screenshot({ type: 'jpeg', quality: 75, timeout: 10000 });
+        base64 = screenshot.toString('base64');
+      } catch (err) {
+        onStep({ phase: 'error', step, message: `Screenshot failed: ${err.message}` });
+        return 'failed';
+      }
 
       onStep({ phase: 'screenshot', step, screenshot: base64 });
 
