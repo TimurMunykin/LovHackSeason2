@@ -13,7 +13,7 @@ passport.use(
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: `${process.env.BASE_URL}/auth/google/callback`,
     },
-    async (_accessToken, _refreshToken, profile, done) => {
+    async (accessToken, refreshToken, profile, done) => {
       try {
         const user = await prisma.user.upsert({
           where: { googleId: profile.id },
@@ -21,12 +21,16 @@ passport.use(
             name: profile.displayName,
             email: profile.emails[0].value,
             avatarUrl: profile.photos?.[0]?.value || null,
+            googleAccessToken: accessToken,
+            ...(refreshToken && { googleRefreshToken: refreshToken }),
           },
           create: {
             googleId: profile.id,
             name: profile.displayName,
             email: profile.emails[0].value,
             avatarUrl: profile.photos?.[0]?.value || null,
+            googleAccessToken: accessToken,
+            googleRefreshToken: refreshToken || null,
           },
         });
         done(null, user);
@@ -48,7 +52,11 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', passport.authenticate('google', {
+  scope: ['profile', 'email', 'https://www.googleapis.com/auth/calendar.events'],
+  accessType: 'offline',
+  prompt: 'consent',
+}));
 
 router.get(
   '/google/callback',

@@ -5,6 +5,7 @@ const passport = require('passport');
 const path = require('path');
 const authRoutes = require('./routes/auth');
 const browserRoutes = require('./routes/browser');
+const calendarRoutes = require('./routes/calendar');
 const { requireAuth } = require('./middleware/auth');
 
 const app = express();
@@ -36,6 +37,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/auth', authRoutes);
 app.use('/api/browser', requireAuth, browserRoutes);
+app.use('/api/calendar', requireAuth, calendarRoutes);
 
 app.get('/dashboard', requireAuth, (_req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));

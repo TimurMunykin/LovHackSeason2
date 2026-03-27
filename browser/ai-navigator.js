@@ -15,15 +15,23 @@ Respond with a JSON action object. Available actions:
 Be concise. Return only the JSON object, no explanation.`,
 
   schedule: `You are a web navigation agent. Your goal is to find the STUDENT SCHEDULE / TIMETABLE page.
-Look for links/buttons containing words like "schedule", "timetable", "расписание", "calendar", "classes".
-If the schedule is already visible on the current page, respond with "done".
+
+Respond with {"action":"done"} immediately if the current page already shows ANY of:
+- A timetable or schedule table with days/times/subjects
+- A calendar view (week/month) with classes or events on it
+- A list of classes with times and dates
+- Google Calendar, Outlook Calendar, or any calendar app with events visible
+- Any page showing recurring class times (even if labelled differently)
+
+If not already on a schedule page, look for links/buttons with words like "schedule", "timetable", "расписание", "calendar", "classes", "занятия", "пары".
 If the page requires authentication (login form, "sign in" prompt, access denied), respond with "need_login".
+
 Respond with a JSON action object. Available actions:
+- {"action":"done"} — a schedule/calendar with events is visible on screen RIGHT NOW
 - {"action":"click","text":"visible button/link text"} — click an element by its visible text
 - {"action":"click_coords","x":123,"y":456} — click at exact coordinates
-- {"action":"done"} — the schedule/timetable is now visible on screen
 - {"action":"need_login"} — authentication is required before accessing the schedule
-- {"action":"fail","reason":"..."} — cannot find schedule page
+- {"action":"fail","reason":"..."} — cannot find schedule page after trying
 Be concise. Return only the JSON object, no explanation.`,
 };
 
@@ -32,7 +40,7 @@ class AiNavigator {
     for (let step = 0; step < MAX_STEPS; step++) {
       let base64;
       try {
-        const screenshot = await page.screenshot({ type: 'jpeg', quality: 75, timeout: 10000 });
+        const screenshot = await page.screenshot({ type: 'jpeg', quality: 75 });
         base64 = screenshot.toString('base64');
       } catch (err) {
         onStep({ phase: 'error', step, message: `Screenshot failed: ${err.message}` });
