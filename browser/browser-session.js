@@ -25,6 +25,7 @@ class BrowserSession {
   }
 
   async start(url) {
+    console.log(`[session:${this.sessionId}] starting → ${url}`);
     this.setStatus('starting');
 
     // Start Xvfb virtual display
@@ -145,7 +146,16 @@ class BrowserSession {
     this.setStatus('extracting');
     this.addLog('action', 'Schedule page found. Extracting data...');
 
-    const extraction = await extractSchedule(this.page);
+    let extraction;
+    try {
+      extraction = await extractSchedule(this.page);
+    } catch (err) {
+      console.error('[extractScheduleData]', err.message);
+      this.setStatus('failed');
+      this.result = { error: `Extraction error: ${err.message}` };
+      this.addLog('error', `Extraction failed: ${err.message}`);
+      return;
+    }
     let screenshotBase64 = null;
     try {
       const buf = await this.page.screenshot({ type: 'jpeg', quality: 75 });

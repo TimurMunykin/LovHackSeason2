@@ -114,6 +114,33 @@
         <img id="debugShot" class="hidden w-full max-h-64 object-contain bg-black rounded-xl border border-slate-700" alt="Debug screenshot">
       </div>
 
+      <!-- Google Calendar Import -->
+      <div id="calendarImport" class="hidden max-w-xl mx-auto mt-6 bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+        <h3 class="text-sm font-medium text-slate-300 mb-3">Import to Google Calendar</h3>
+        <div class="flex flex-wrap gap-3 mb-3">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400">Semester start date</label>
+            <input type="date" id="semesterStart"
+              class="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400">Weeks</label>
+            <input type="number" id="semesterWeeks" value="16" min="1" max="52"
+              class="w-20 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-slate-400">Timezone</label>
+            <input type="text" id="semesterTz" value=""
+              class="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+          </div>
+        </div>
+        <button onclick="importToCalendar()" id="importBtn"
+          class="px-5 py-2.5 bg-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-500 transition">
+          Import to Google Calendar
+        </button>
+        <div id="importStatus" class="hidden mt-3 text-sm"></div>
+      </div>
+
       <div class="text-center mt-6">
         <button onclick="resetApp()" class="px-6 py-3 bg-slate-700 rounded-lg font-medium hover:bg-slate-600 transition">
           Try again
@@ -146,9 +173,7 @@
         showSessionView();
         updateFromStatus(data);
         connectSSE();
-        if (['success', 'failed'].includes(data.status)) {
-          showResult(data.status === 'success', data.result);
-        }
+        if (data.status === 'success') showResult(data.result);
       }
     }).catch(() => {});
 
@@ -210,9 +235,7 @@
       eventSource.addEventListener('error', () => {
         setTimeout(() => {
           fetch('/api/browser/status').then(r => r.ok ? r.json() : null).then(data => {
-            if (data && ['success', 'failed'].includes(data.status)) {
-              showResult(data.status === 'success', data.result);
-            }
+            if (data && data.status === 'success') showResult(data.result);
           }).catch(() => {});
         }, 2000);
       });
@@ -239,9 +262,9 @@
       text.textContent = s.label;
       confirmBtn.classList.toggle('hidden', status !== 'active');
 
-      if (status === 'success' || status === 'failed') {
+      if (status === 'success') {
         fetch('/api/browser/status').then(r => r.json()).then(data => {
-          showResult(status === 'success', data.result);
+          showResult(data.result);
         }).catch(() => {});
       }
     }
@@ -271,38 +294,88 @@
       resetApp();
     }
 
-    function showResult(success, result) {
+    let lastSchedule = null;
+
+    function showResult(result) {
       if (eventSource) { eventSource.close(); eventSource = null; }
       document.getElementById('sessionView').classList.add('hidden');
       document.getElementById('vncFrame').src = '';
       document.getElementById('resultView').classList.remove('hidden');
 
-      document.getElementById('resultIcon').textContent = success ? '\u2705' : '\u274C';
-      document.getElementById('resultTitle').textContent = success ? 'Schedule Extracted' : 'Extraction Failed';
-      document.getElementById('resultDesc').textContent = success
-        ? `Found ${result?.scheduleJson?.length || 0} schedule entries.`
-        : (result?.error || 'Could not extract schedule data.');
+      document.getElementById('resultIcon').textContent = '\u2705';
+      document.getElementById('resultTitle').textContent = 'Schedule Extracted';
+      document.getElementById('resultDesc').textContent = `Found ${result?.scheduleJson?.length || 0} schedule entries.`;
 
       const meta = document.getElementById('resultMeta');
-      if (success && result) {
-        meta.classList.remove('hidden');
-        document.getElementById('metaSource').textContent = result.extractionSource || '-';
-        document.getElementById('metaCount').textContent = result.scheduleJson?.length || 0;
-        document.getElementById('metaUrl').textContent = result.debug?.scheduleUrl || '-';
-        document.getElementById('metaTitle').textContent = result.debug?.scheduleTitle || '-';
-        document.getElementById('resultJson').textContent = JSON.stringify(result.scheduleJson || [], null, 2);
+      const calendarImport = document.getElementById('calendarImport');
+      meta.classList.remove('hidden');
+      document.getElementById('metaSource').textContent = result.extractionSource || '-';
+      document.getElementById('metaCount').textContent = result.scheduleJson?.length || 0;
+      document.getElementById('metaUrl').textContent = result.debug?.scheduleUrl || '-';
+      document.getElementById('metaTitle').textContent = result.debug?.scheduleTitle || '-';
+      document.getElementById('resultJson').textContent = JSON.stringify(result.scheduleJson || [], null, 2);
 
-        const shot = document.getElementById('debugShot');
-        if (result.screenshotBase64) {
-          shot.src = 'data:image/jpeg;base64,' + result.screenshotBase64;
-          shot.classList.remove('hidden');
+      const shot = document.getElementById('debugShot');
+      if (result.screenshotBase64) {
+        shot.src = 'data:image/jpeg;base64,' + result.screenshotBase64;
+        shot.classList.remove('hidden');
+      }
+
+      if (result.scheduleJson?.length > 0) {
+        lastSchedule = result.scheduleJson;
+        calendarImport.classList.remove('hidden');
+        const nextMonday = new Date();
+        nextMonday.setDate(nextMonday.getDate() + (1 + 7 - nextMonday.getDay()) % 7 || 7);
+        document.getElementById('semesterStart').value = nextMonday.toISOString().split('T')[0];
+        document.getElementById('semesterTz').value = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Moscow';
+      }
+    }
+
+    async function importToCalendar() {
+      if (!lastSchedule) return;
+      const startDate = document.getElementById('semesterStart').value;
+      const weeks = parseInt(document.getElementById('semesterWeeks').value) || 16;
+      const timezone = document.getElementById('semesterTz').value || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Moscow';
+
+      if (!startDate) return alert('Please set a semester start date');
+
+      const btn = document.getElementById('importBtn');
+      const status = document.getElementById('importStatus');
+      btn.disabled = true;
+      btn.textContent = 'Importing...';
+      status.classList.remove('hidden');
+      status.className = 'mt-3 text-sm text-slate-400';
+      status.textContent = 'Creating events in Google Calendar...';
+
+      try {
+        const resp = await fetch('/api/calendar/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ schedule: lastSchedule, startDate, weeks, timezone }),
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          status.className = 'mt-3 text-sm text-red-400';
+          status.textContent = data.error || 'Import failed';
+        } else {
+          status.className = 'mt-3 text-sm text-emerald-400';
+          let msg = `Done! Created ${data.created} events${data.failed > 0 ? `, ${data.failed} failed` : ''}.`;
+          if (data.errors?.length) msg += '\n' + data.errors.join('\n');
+          status.textContent = msg;
+          btn.textContent = 'Import again';
         }
-      } else {
-        meta.classList.add('hidden');
+      } catch (err) {
+        status.className = 'mt-3 text-sm text-red-400';
+        status.textContent = 'Error: ' + err.message;
+      } finally {
+        btn.disabled = false;
+        if (btn.textContent === 'Importing...') btn.textContent = 'Import to Google Calendar';
       }
     }
 
     function resetApp() {
+      lastSchedule = null;
       document.getElementById('resultView').classList.add('hidden');
       document.getElementById('sessionView').classList.add('hidden');
       document.getElementById('startView').classList.remove('hidden');
@@ -313,6 +386,9 @@
       document.getElementById('debugShot').src = '';
       document.getElementById('debugShot').classList.add('hidden');
       document.getElementById('resultMeta').classList.add('hidden');
+      document.getElementById('calendarImport').classList.add('hidden');
+      document.getElementById('importStatus').classList.add('hidden');
+      document.getElementById('importBtn').textContent = 'Import to Google Calendar';
     }
   </script>
 
