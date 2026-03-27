@@ -13,7 +13,6 @@ services:
     depends_on:
       - web
       - browser
-      - extractor
 
   web:
     image: ${DOCKER_REPO_PREFIX}/lovhack-web:${IMAGE_TAG:-latest}
@@ -22,9 +21,6 @@ services:
 
   browser:
     image: ${DOCKER_REPO_PREFIX}/lovhack-browser:${IMAGE_TAG:-latest}
-
-  extractor:
-    image: ${DOCKER_REPO_PREFIX}/lovhack-extractor:${IMAGE_TAG:-latest}
 
   postgres:
     volumes:

@@ -1,7 +1,6 @@
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const { AiNavigator } = require('./ai-navigator');
-const { extractSchedule } = require('./schedule-extractor');
 
 const VIEWPORT = { width: 1280, height: 800 };
 
@@ -60,12 +59,9 @@ class BrowserSession {
     this.currentUrl = this.page.url();
     this.pageTitle = await this.page.title();
 
-    // Start by looking for the schedule directly (fire-and-forget, errors handled internally)
-    this.findSchedule().catch((err) => {
-      this.setStatus('failed');
-      this.result = { error: err.message };
-      this.addLog('error', `Unexpected error: ${err.message}`);
-    });
+    // Wait for the user to log in manually and click "I've completed login".
+    this.setStatus('active');
+    this.addLog('handoff', 'Page is open. Please log in if required, then click "I\'ve completed login".');
   }
 
   attachPageListeners() {
@@ -77,38 +73,24 @@ class BrowserSession {
       }
     });
 
-    this.page.on('response', async (response) => {
-      if (!['navigating_schedule', 'extracting'].includes(this.status)) return;
-      try {
-        const contentType = response.headers()['content-type'] || '';
-        if (!contentType.match(/json|javascript|text|html/i)) return;
-        const url = response.url();
-        const status = response.status();
-        const body = await response.text().catch(() => null);
-        if (!body || body.length > 300000) return;
-        let json = null;
-        try { json = JSON.parse(body); } catch {}
-        this.networkLog.push({ url, status, contentType, json, textSample: body.slice(0, 2000) });
-      } catch {}
-    });
   }
 
   async findSchedule() {
-    this.networkLog = [];
     this.setStatus('navigating_schedule');
-    this.addLog('action', 'Looking for schedule...');
+    this.addLog('action', 'Looking for schedule page...');
 
     const navigator = new AiNavigator();
-    const result = await navigator.navigate(this.page, 'schedule', (step) => {
+    const navResult = await navigator.navigate(this.page, 'schedule', (step) => {
       this.aiLog.push(step);
       this.emitEvent('log', step);
     });
 
-    if (result === 'done') {
-      await this.extractScheduleData();
-    } else if (result === 'need_login') {
-      this.addLog('action', 'Login required. Looking for login page...');
-      await this.findLogin();
+    if (navResult === 'done') {
+      await this.collectScheduleData(navigator);
+    } else if (navResult === 'need_login') {
+      // User apparently wasn't logged in yet — go back to waiting state
+      this.setStatus('active');
+      this.addLog('handoff', 'Session appears to require login. Please log in and click "I\'ve completed login" again.');
     } else {
       this.setStatus('failed');
       this.result = { error: 'Could not find the schedule page.' };
@@ -116,36 +98,25 @@ class BrowserSession {
     }
   }
 
-  async findLogin() {
-    this.setStatus('navigating_login');
-    const navigator = new AiNavigator();
+  async confirm() {
+    if (this.status !== 'active') return;
+    // User has logged in — now let the AI find and collect the schedule
+    this.findSchedule().catch((err) => {
+      this.setStatus('failed');
+      this.result = { error: err.message };
+      this.addLog('error', `Unexpected error: ${err.message}`);
+    });
+  }
 
-    const result = await navigator.navigate(this.page, 'login', (step) => {
+  async collectScheduleData(navigator) {
+    this.setStatus('extracting');
+    this.addLog('action', 'Schedule page found. Collecting full schedule...');
+
+    const entries = await navigator.collectSchedule(this.page, (step) => {
       this.aiLog.push(step);
       this.emitEvent('log', step);
     });
 
-    if (result === 'done') {
-      this.setStatus('active');
-      this.addLog('handoff', 'Login page found. Please log in and click "I\'ve completed login".');
-    } else {
-      this.setStatus('failed');
-      this.result = { error: 'Could not find the login page.' };
-      this.addLog('error', 'Failed to find login page.');
-    }
-  }
-
-  async confirm() {
-    if (this.status !== 'active') return;
-    // After user logs in, go look for schedule again
-    await this.findSchedule();
-  }
-
-  async extractScheduleData() {
-    this.setStatus('extracting');
-    this.addLog('action', 'Schedule page found. Extracting data...');
-
-    const extraction = await extractSchedule(this.page);
     let screenshotBase64 = null;
     try {
       const buf = await this.page.screenshot({ type: 'jpeg', quality: 75 });
@@ -153,9 +124,8 @@ class BrowserSession {
     } catch {}
 
     this.result = {
-      scheduleFound: extraction.items.length > 0,
-      extractionSource: extraction.source,
-      scheduleJson: extraction.items,
+      scheduleFound: entries.length > 0,
+      scheduleJson: entries,
       screenshotBase64,
       debug: {
         scheduleUrl: this.currentUrl,
@@ -163,11 +133,11 @@ class BrowserSession {
       },
     };
 
-    this.setStatus(extraction.items.length > 0 ? 'success' : 'failed');
+    this.setStatus(entries.length > 0 ? 'success' : 'failed');
     this.addLog(
-      extraction.items.length > 0 ? 'action' : 'error',
-      extraction.items.length > 0
-        ? `Extracted ${extraction.items.length} schedule entries (${extraction.source}).`
+      entries.length > 0 ? 'action' : 'error',
+      entries.length > 0
+        ? `Collected ${entries.length} schedule entries.`
         : 'No schedule data found.'
     );
   }
