@@ -141,7 +141,7 @@ class BrowserSession {
     this.setStatus('extracting');
     this.addLog('action', 'Schedule page found. Extracting data...');
 
-    const extraction = await extractSchedule(this.page, this.networkLog);
+    const extraction = await extractSchedule(this.page);
     let screenshotBase64 = null;
     try {
       const buf = await this.page.screenshot({ type: 'jpeg', quality: 75 });

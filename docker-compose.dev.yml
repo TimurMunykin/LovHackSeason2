@@ -12,6 +12,11 @@ services:
     ports:
       - "3001:3001"
 
+  extractor:
+    build: ./backend
+    ports:
+      - "3002:3001"
+
   postgres:
     ports:
       - "5432:5432"
