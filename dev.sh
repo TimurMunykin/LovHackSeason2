@@ -24,8 +24,11 @@ export BASE_URL=${BASE_URL:-http://localhost:3000}
 
 # Required env vars
 missing=""
-[ -z "$GOOGLE_CLIENT_ID" ] && missing="$missing GOOGLE_CLIENT_ID"
-[ -z "$GOOGLE_CLIENT_SECRET" ] && missing="$missing GOOGLE_CLIENT_SECRET"
+# Google credentials are not needed when auth bypass is active
+if [ "${DEV_AUTH_BYPASS}" != "true" ]; then
+  [ -z "$GOOGLE_CLIENT_ID" ] && missing="$missing GOOGLE_CLIENT_ID"
+  [ -z "$GOOGLE_CLIENT_SECRET" ] && missing="$missing GOOGLE_CLIENT_SECRET"
+fi
 [ -z "$OPENAI_API_KEY" ] && missing="$missing OPENAI_API_KEY"
 
 if [ -n "$missing" ]; then
@@ -35,6 +38,11 @@ if [ -n "$missing" ]; then
   echo "  cp .env.example .env   # then fill in values"
   echo "  ./dev.sh"
   exit 1
+fi
+
+if [ "${DEV_AUTH_BYPASS}" = "true" ]; then
+  echo "⚠  DEV_AUTH_BYPASS=true — Google login is disabled, using dev user"
+  echo ""
 fi
 
 echo "App will be at: $BASE_URL"
