@@ -58,7 +58,8 @@ docker compose ${COMPOSE_FILES} up -d
 
 echo ""
 echo "Deploy complete."
-echo "App URL: ${BASE_URL}"
+echo "App URL:          ${BASE_URL}"
+echo "Presentation URL: ${BASE_URL}/slides/"
 echo ""
 echo "Make sure DNS for ${APP_DOMAIN} points to this VPS."
 echo "If HTTPS is not ready yet, check:"

@@ -12,6 +12,11 @@ services:
     ports:
       - "3001:3001"
 
+  presentation:
+    build: ./presentation
+    ports:
+      - "3030:3030"
+
   postgres:
     ports:
       - "5432:5432"
