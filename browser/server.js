@@ -3,6 +3,14 @@ const net = require('net');
 const express = require('express');
 const { WebSocketServer, WebSocket } = require('ws');
 const { SessionManager } = require('./session-manager');
+const { assertPythonScheduleAvailable } = require('./schedule-extractor');
+
+try {
+  assertPythonScheduleAvailable();
+} catch (e) {
+  console.error(e.message);
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
