@@ -7,8 +7,22 @@ const prisma = new PrismaClient();
 const router = Router();
 
 const DAY_INDEX = {
-  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
-  воскресенье: 0, понедельник: 1, вторник: 2, среда: 3, четверг: 4, пятница: 5, суббота: 6,
+  // English full & abbreviated
+  sunday: 0, sun: 0, su: 0,
+  monday: 1, mon: 1, mo: 1,
+  tuesday: 2, tue: 2, tu: 2,
+  wednesday: 3, wed: 3, we: 3,
+  thursday: 4, thu: 4, th: 4,
+  friday: 5, fri: 5, fr: 5,
+  saturday: 6, sat: 6, sa: 6,
+  // Russian full & abbreviated
+  воскресенье: 0, вс: 0, воскр: 0,
+  понедельник: 1, пн: 1, пнд: 1,
+  вторник: 2, вт: 2,
+  среда: 3, ср: 3,
+  четверг: 4, чт: 4, чтв: 4,
+  пятница: 5, пт: 5,
+  суббота: 6, сб: 6, суб: 6,
 };
 
 function getOAuthClient(accessToken, refreshToken) {
@@ -75,11 +89,21 @@ router.post('/import', requireAuth, async (req, res) => {
   let failed = 0;
   const errors = [];
 
+  console.log(`[calendar:import] Processing ${schedule.length} entries, startDate=${startDate}, endDate=${endDate}, weeks=${weeks}`);
+
   for (const entry of schedule) {
-    if (!entry.day || !entry.time_start) continue;
+    if (!entry.day || !entry.time_start) {
+      console.log(`[calendar:import] Skipped entry (missing day/time_start):`, JSON.stringify(entry));
+      continue;
+    }
 
     const firstDate = findFirstOccurrence(startDate, entry.day);
-    if (!firstDate) continue;
+    if (!firstDate) {
+      console.log(`[calendar:import] Unknown day "${entry.day}" for "${entry.course_name}"`);
+      failed++;
+      errors.push(`Unknown day "${entry.day}" for ${entry.course_name || 'unknown course'}`);
+      continue;
+    }
 
     const eventStart = setTime(firstDate, entry.time_start);
     let eventEnd;
