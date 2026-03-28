@@ -10,6 +10,7 @@ services:
       - SESSION_SECRET=${SESSION_SECRET}
       - BASE_URL=${BASE_URL}
       - BROWSER_API=http://browser:3001
+      - DEV_AUTH_BYPASS=${DEV_AUTH_BYPASS:-false}
 
   browser:
     shm_size: "2g"

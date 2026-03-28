@@ -2,9 +2,20 @@ const { Router } = require('express');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { PrismaClient } = require('@prisma/client');
+const { DEV_USER } = require('../middleware/auth');
 
 const prisma = new PrismaClient();
 const router = Router();
+
+// ── Dev bypass login (only active when DEV_AUTH_BYPASS=true) ──────────────
+router.get('/dev-login', (req, res) => {
+  if (process.env.DEV_AUTH_BYPASS !== 'true') {
+    return res.status(403).send('Dev login is disabled in this environment.');
+  }
+  // Stamp the fake user onto the session so passport-aware code is happy
+  req.session.devUser = DEV_USER;
+  res.redirect('/dashboard');
+});
 
 passport.use(
   new GoogleStrategy(
@@ -73,6 +84,9 @@ router.get('/logout', (req, res) => {
 });
 
 router.get('/me', (req, res) => {
+  if (process.env.DEV_AUTH_BYPASS === 'true') {
+    return res.json(DEV_USER);
+  }
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Not authenticated' });
   const { id, name, email, avatarUrl } = req.user;
   res.json({ id, name, email, avatarUrl });

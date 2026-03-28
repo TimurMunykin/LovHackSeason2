@@ -33,6 +33,11 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+// In dev bypass mode, skip the landing page and go straight to the dashboard
+if (process.env.DEV_AUTH_BYPASS === 'true') {
+  app.get('/', (_req, res) => res.redirect('/dashboard'));
+}
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/auth', authRoutes);

@@ -1,7 +1,11 @@
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const { AiNavigator } = require('./ai-navigator');
-const { extractSchedule } = require('./schedule-extractor');
+const {
+  extractScheduleFromHtmls,
+  getPageHtml,
+  normalizeScheduleSnapshot,
+} = require('./schedule-extractor');
 
 const VIEWPORT = { width: 1280, height: 800 };
 
@@ -61,12 +65,9 @@ class BrowserSession {
     this.currentUrl = this.page.url();
     this.pageTitle = await this.page.title();
 
-    // Start by looking for the schedule directly (fire-and-forget, errors handled internally)
-    this.findSchedule().catch((err) => {
-      this.setStatus('failed');
-      this.result = { error: err.message };
-      this.addLog('error', `Unexpected error: ${err.message}`);
-    });
+    // Wait for the user to log in manually, then click "I've completed login".
+    this.setStatus('active');
+    this.addLog('handoff', 'Page is open. Please log in if needed, then click "I\'ve completed login".');
   }
 
   attachPageListeners() {
@@ -97,10 +98,10 @@ class BrowserSession {
   async findSchedule() {
     this.networkLog = [];
     this.setStatus('navigating_schedule');
-    this.addLog('action', 'Looking for schedule...');
+    this.addLog('action', 'Looking for schedule page...');
 
     const navigator = new AiNavigator();
-    const result = await navigator.navigate(this.page, 'schedule', (step) => {
+    const result = await navigator.navigate(this.page, (step) => {
       this.aiLog.push(step);
       this.emitEvent('log', step);
     });
@@ -108,8 +109,9 @@ class BrowserSession {
     if (result === 'done') {
       await this.extractScheduleData();
     } else if (result === 'need_login') {
-      this.addLog('action', 'Login required. Looking for login page...');
-      await this.findLogin();
+      // User wasn't fully logged in yet — go back to waiting state
+      this.setStatus('active');
+      this.addLog('handoff', 'Login still required. Please finish logging in and click "I\'ve completed login" again.');
     } else {
       this.setStatus('failed');
       this.result = { error: 'Could not find the schedule page.' };
@@ -117,38 +119,36 @@ class BrowserSession {
     }
   }
 
-  async findLogin() {
-    this.setStatus('navigating_login');
-    const navigator = new AiNavigator();
-
-    const result = await navigator.navigate(this.page, 'login', (step) => {
-      this.aiLog.push(step);
-      this.emitEvent('log', step);
-    });
-
-    if (result === 'done') {
-      this.setStatus('active');
-      this.addLog('handoff', 'Login page found. Please log in and click "I\'ve completed login".');
-    } else {
-      this.setStatus('failed');
-      this.result = { error: 'Could not find the login page.' };
-      this.addLog('error', 'Failed to find login page.');
-    }
-  }
-
   async confirm() {
     if (this.status !== 'active') return;
-    // After user logs in, go look for schedule again
-    await this.findSchedule();
+    // User confirmed login — now find and extract the schedule
+    this.findSchedule().catch((err) => {
+      this.setStatus('failed');
+      this.result = { error: err.message };
+      this.addLog('error', `Unexpected error: ${err.message}`);
+    });
   }
 
   async extractScheduleData() {
     this.setStatus('extracting');
-    this.addLog('action', 'Schedule page found. Extracting data...');
+    this.addLog('action', 'Schedule page found. Collecting all weeks...');
+
+    let htmlSnapshots;
+    try {
+      htmlSnapshots = await this._collectAllWeeksHtml();
+    } catch (err) {
+      console.error('[collectAllWeeksHtml]', err.message);
+      this.setStatus('failed');
+      this.result = { error: `Week collection error: ${err.message}` };
+      this.addLog('error', `Failed to collect weeks: ${err.message}`);
+      return;
+    }
+
+    this.addLog('action', `Collected ${htmlSnapshots.length} week(s). Extracting schedule...`);
 
     let extraction;
     try {
-      extraction = await extractSchedule(this.page);
+      extraction = await extractScheduleFromHtmls(htmlSnapshots);
     } catch (err) {
       console.error('[extractScheduleData]', err.message);
       this.setStatus('failed');
@@ -156,6 +156,7 @@ class BrowserSession {
       this.addLog('error', `Extraction failed: ${err.message}`);
       return;
     }
+
     let screenshotBase64 = null;
     try {
       const buf = await this.page.screenshot({ type: 'jpeg', quality: 75 });
@@ -170,6 +171,7 @@ class BrowserSession {
       debug: {
         scheduleUrl: this.currentUrl,
         scheduleTitle: this.pageTitle,
+        weeksCollected: htmlSnapshots.length,
       },
     };
 
@@ -177,9 +179,157 @@ class BrowserSession {
     this.addLog(
       extraction.items.length > 0 ? 'action' : 'error',
       extraction.items.length > 0
-        ? `Extracted ${extraction.items.length} schedule entries (${extraction.source}).`
+        ? `Extracted ${extraction.items.length} entries from ${htmlSnapshots.length} week(s).`
         : 'No schedule data found.'
     );
+  }
+
+  /**
+   * Walk through all available weeks on the timetable page, capturing an HTML
+   * snapshot of each. Returns raw HTML strings; the extractor minimizes/trim
+   * them the same way as extract_schedule.py.
+   */
+  async _collectAllWeeksHtml() {
+    const MAX_WEEKS = 4;
+    const htmlSnapshots = [];
+    const seenSigs = new Set(); // content-based dedup — works for both SPAs and URL-based nav
+
+    for (let week = 0; week < MAX_WEEKS; week++) {
+      await this.page.waitForLoadState('networkidle', { timeout: 6000 }).catch(() => {});
+      await this.page.waitForTimeout(600);
+
+      // Snapshot this week's HTML (raw — no DOM mutation)
+      let html;
+      try {
+        html = await getPageHtml(this.page);
+      } catch (err) {
+        this.addLog('error', `Week ${week + 1}: HTML capture failed — ${err.message}`);
+        break;
+      }
+
+      // Fingerprint on minimized schedule slice so SPA chrome/scripts don't mask real changes.
+      const norm = normalizeScheduleSnapshot(html);
+      const mid = Math.floor(norm.length / 2);
+      const sig =
+        norm.slice(0, 200) + '|' + norm.slice(mid - 100, mid + 100) + '|' + norm.slice(-200);
+      if (seenSigs.has(sig)) {
+        this.addLog('action', `Week ${week + 1}: content unchanged after navigation — stopping.`);
+        break;
+      }
+      seenSigs.add(sig);
+      htmlSnapshots.push(html);
+      this.addLog('action', `Week ${week + 1}: captured ${Math.round(html.length / 1024)} KB (${this.page.url()})`);
+
+      // ── Find "next week" button by scanning the live DOM ──────────────────
+      const clickResult = await this._clickNextWeekButton(week + 1);
+      if (!clickResult) break;
+
+      // Give the SPA time to re-render the new week's content
+      await this.page.waitForTimeout(2500);
+    }
+
+    return htmlSnapshots;
+  }
+
+  /**
+   * Scan the live DOM for a "next week / next period" control and click it.
+   * Returns the text of what was clicked, or null if nothing was found.
+   *
+   * Uses page.evaluate() so matching and clicking happen inside the browser,
+   * avoiding Playwright selector fragility.
+   */
+  async _clickNextWeekButton(weekNum) {
+    // First, log all candidate buttons so we can debug what the page has
+    const candidates = await this.page.evaluate(() => {
+      const results = [];
+      const seen = new Set();
+      document.querySelectorAll('button, a, [role="button"], [role="link"], [role="tab"]').forEach(el => {
+        const text = (
+          el.innerText || el.textContent ||
+          el.getAttribute('aria-label') || el.getAttribute('title') || ''
+        ).trim().replace(/\s+/g, ' ').slice(0, 60);
+        const cls = (typeof el.className === 'string' ? el.className : '').toLowerCase();
+        if (text && !seen.has(text)) {
+          seen.add(text);
+          results.push({ text, cls });
+        }
+      });
+      return results;
+    }).catch(() => []);
+
+    this.addLog('action', `Week ${weekNum} nav scan: [${candidates.map(c => `"${c.text}"`).join(', ')}]`);
+
+    // Patterns to match against button text or CSS class names.
+    // Ordered from most specific to most general to avoid false positives.
+    const TEXT_PATTERNS = [
+      // Arrow symbols
+      /^[›»→>]$/,
+      // English
+      /next\s*week/i,
+      /next\s*period/i,
+      /^next$/i,
+      /^forward$/i,
+      // Czech / Slovak
+      /další/i, /příští/i, /ďalší/i,
+      // German
+      /nächste/i, /weiter/i,
+      // French
+      /suivant/i, /semaine\s*suivante/i,
+      // Spanish / Italian
+      /siguiente/i, /prossim/i,
+      // Russian / Ukrainian
+      /следующ/i, /наступн/i,
+      // Polish
+      /następn/i, /kolejn/i,
+    ];
+    const CLASS_PATTERNS = [
+      /fc-next/i, /next-week/i, /nextWeek/i, /btn-next/i,
+      /cal-next/i, /arrow-next/i, /week-next/i, /nav-next/i,
+    ];
+
+    // Try to click via page.evaluate for reliability
+    const clicked = await this.page.evaluate(({ textPatterns, classPatterns }) => {
+      const toRe = s => new RegExp(s.source ?? s, s.flags ?? 'i');
+
+      const elements = Array.from(
+        document.querySelectorAll('button, a, [role="button"], [role="link"]')
+      );
+
+      // Sort: prefer buttons over links, visible elements first
+      elements.sort((a, b) => {
+        const aVis = a.getBoundingClientRect().width > 0 ? 0 : 1;
+        const bVis = b.getBoundingClientRect().width > 0 ? 0 : 1;
+        return aVis - bVis;
+      });
+
+      for (const el of elements) {
+        const text = (
+          el.innerText || el.textContent ||
+          el.getAttribute('aria-label') || el.getAttribute('title') || ''
+        ).trim().replace(/\s+/g, ' ');
+        const cls = (typeof el.className === 'string' ? el.className : '');
+
+        const textMatch = textPatterns.some(p => toRe(p).test(text));
+        const classMatch = classPatterns.some(p => toRe(p).test(cls));
+
+        if (textMatch || classMatch) {
+          el.click();
+          return text || cls;
+        }
+      }
+      return null;
+    }, {
+      textPatterns: TEXT_PATTERNS.map(r => ({ source: r.source, flags: r.flags })),
+      classPatterns: CLASS_PATTERNS.map(r => ({ source: r.source, flags: r.flags })),
+    }).catch(() => null);
+
+    if (clicked) {
+      this.addLog('action', `Week ${weekNum}: clicked "${clicked}" → advancing to next week`);
+      return clicked;
+    }
+
+    this.addLog('action', `Week ${weekNum}: no "next week" button found — collection complete.`);
+    return null;
   }
 
   async stop() {
