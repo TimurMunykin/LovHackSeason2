@@ -38,7 +38,7 @@ schema; omit fields that are genuinely absent from this page:
 {
   "course_code":  "string | null",
   "course_name":  "string | null",
-  "day":          "string",
+  "day":          "string — MUST be full English: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday",
   "time_start":   "string",
   "time_end":     "string | null",
   "teacher":      "string | null",
@@ -50,7 +50,7 @@ schema; omit fields that are genuinely absent from this page:
 }
 
 Rules:
-- Determine "day" from the HTML structure — never leave it null if determinable.
+- Determine "day" from the HTML structure — never leave it null if determinable. ALWAYS translate to English (Monday–Sunday) regardless of the page language.
 - The SAME course CAN appear multiple times — output each occurrence as a SEPARATE entry.
 - Convert all times to 24 h "HH:MM" regardless of input format.
 - Output ONLY a valid JSON array [ {...}, ... ]. No markdown, no prose.
