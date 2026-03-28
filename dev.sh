@@ -37,7 +37,8 @@ if [ -n "$missing" ]; then
   exit 1
 fi
 
-echo "App will be at: $BASE_URL"
+echo "App will be at:          $BASE_URL"
+echo "Presentation will be at: http://localhost:3030"
 echo ""
 echo "Run modes:"
 echo "  default          clean restart with rebuild"

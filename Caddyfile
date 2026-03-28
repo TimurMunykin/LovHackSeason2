@@ -9,6 +9,14 @@
     reverse_proxy browser:3001
   }
 
+  handle /slides/* {
+    reverse_proxy presentation:3030
+  }
+
+  handle /slides {
+    redir /slides/ permanent
+  }
+
   handle {
     reverse_proxy web:3000
   }

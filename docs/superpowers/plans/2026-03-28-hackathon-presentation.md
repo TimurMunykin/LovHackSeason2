@@ -1,3 +1,87 @@
+# UniCal Hackathon Presentation Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Create a Slidev presentation for UniCal hackathon submission (~9 slides, dark theme, English).
+
+**Architecture:** Single `slides.md` file in a `presentation/` directory with Slidev scaffolding. No custom Vue components — pure Markdown slides with frontmatter configuration.
+
+**Tech Stack:** Slidev, Node.js (for local dev server)
+
+---
+
+## File Structure
+
+- Create: `presentation/package.json` — Slidev dependencies and scripts
+- Create: `presentation/slides.md` — All slide content in Slidev Markdown format
+
+---
+
+### Task 1: Scaffold Slidev project
+
+**Files:**
+- Create: `presentation/package.json`
+
+- [ ] **Step 1: Create a new branch from master**
+
+```bash
+git checkout master && git pull
+git checkout -b feature/hackathon-presentation
+```
+
+- [ ] **Step 2: Create presentation directory**
+
+```bash
+mkdir -p presentation
+```
+
+- [ ] **Step 3: Create package.json**
+
+Create `presentation/package.json`:
+
+```json
+{
+  "name": "unical-presentation",
+  "private": true,
+  "scripts": {
+    "dev": "slidev",
+    "build": "slidev build",
+    "export": "slidev export"
+  },
+  "dependencies": {
+    "@slidev/cli": "^51.0.0",
+    "@slidev/theme-seriph": "latest"
+  }
+}
+```
+
+- [ ] **Step 4: Install dependencies**
+
+```bash
+cd presentation && npm install
+```
+
+Expected: `node_modules/` created, no errors.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add presentation/package.json presentation/package-lock.json
+git commit -m "feat: scaffold Slidev presentation project"
+```
+
+---
+
+### Task 2: Create all slides
+
+**Files:**
+- Create: `presentation/slides.md`
+
+- [ ] **Step 1: Create slides.md with full content**
+
+Create `presentation/slides.md` with the following content:
+
+````markdown
 ---
 theme: seriph
 background: none
@@ -86,10 +170,10 @@ transition: slide-left
 <div>
 
 - AI agent **navigates the portal** like a human would
-- Uses **OpenAI Vision API** to understand page content
+- Uses **GPT-4o-mini Vision** to understand page content
 - User watches the process **live via noVNC**
-- If login is required, **control is handed to the user** — then AI resumes
 - Extracts schedule from **network responses + DOM**
+- Up to **12 autonomous navigation steps**
 
 </div>
 <div class="flex items-center justify-center">
@@ -97,9 +181,8 @@ transition: slide-left
 <div class="text-green-400 mb-2">🤖 AI Navigator Log</div>
 <div class="opacity-70 text-xs space-y-1">
 <p>→ Navigating to portal...</p>
-<p>→ Login required — handing control to user...</p>
-<p>→ User logged in ✓ Resuming...</p>
-<p>→ Found schedule, extracting...</p>
+<p>→ Found schedule link, clicking...</p>
+<p>→ Parsing table data...</p>
 <p>→ Extracted 12 courses ✓</p>
 </div>
 </div>
@@ -126,7 +209,7 @@ transition: slide-left
 
 <div class="flex items-center gap-3">
   <div class="text-2xl">🧠</div>
-  <div><strong>OpenAI Vision API</strong><br/><span class="text-sm opacity-70">AI page navigation</span></div>
+  <div><strong>GPT-4o-mini Vision</strong><br/><span class="text-sm opacity-70">AI page navigation</span></div>
 </div>
 
 <div class="flex items-center gap-3">
@@ -210,36 +293,6 @@ transition: slide-left
 </div>
 
 ---
-transition: slide-left
----
-
-# Built With
-
-<div class="grid grid-cols-2 gap-8 pt-8">
-<div>
-
-### Tools & Services
-- **Gen.xyz** — domain (LovHack sponsor)
-- **OpenAI API** — AI vision & navigation
-- **Google Cloud** — OAuth & Calendar API
-- **Docker** — containerized deployment
-- **Claude Code** — AI-assisted development
-
-</div>
-<div>
-
-### Thanks To
-- **LovHack** organizers for the hackathon
-- **Sponsors:** CREAO, Miro, n8n, Gen.xyz, Mobbin, Relay.app, Nodebase, Featherless AI, and others
-
-<div class="pt-4 text-sm opacity-50">
-"Less talk. More shipping."
-</div>
-
-</div>
-</div>
-
----
 layout: center
 class: text-center
 ---
@@ -248,17 +301,53 @@ class: text-center
 
 ### From messy portal to organized calendar in minutes
 
-<div class="pt-8 space-y-3">
-  <div>
-    <a href="https://uni-schedule-sync.xyz/" class="opacity-70 hover:opacity-100 text-lg">uni-schedule-sync.xyz</a>
-  </div>
-  <div>
-    <a href="https://github.com/TimurMunykin/LovHackSeason2" class="opacity-70 hover:opacity-100">github.com/TimurMunykin/LovHackSeason2</a>
-  </div>
-  <div class="text-sm opacity-50">
-    Built by <a href="https://github.com/TimurMunykin">@TimurMunykin</a> & <a href="https://github.com/giovanni-romanenko">@giovanni-romanenko</a>
-  </div>
-  <div class="text-sm opacity-50">
-    Built with ❤️ at LovHack Season 2
-  </div>
+<div class="pt-8">
+  <span class="opacity-50">Built with ❤️ at LovHack Season 2</span>
 </div>
+````
+
+- [ ] **Step 2: Verify Slidev starts**
+
+```bash
+cd presentation && npx slidev --port 3030 &
+sleep 5
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3030
+kill %1
+```
+
+Expected: HTTP 200.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add presentation/slides.md
+git commit -m "feat: add all presentation slides"
+```
+
+---
+
+### Task 3: Verify and finalize
+
+- [ ] **Step 1: Verify build works**
+
+```bash
+cd presentation && npx slidev build
+```
+
+Expected: Static files generated in `presentation/dist/`.
+
+- [ ] **Step 2: Add dist to .gitignore**
+
+Append to `presentation/.gitignore` (create if needed):
+
+```
+node_modules/
+dist/
+```
+
+- [ ] **Step 3: Final commit**
+
+```bash
+git add presentation/.gitignore
+git commit -m "chore: add presentation .gitignore"
+```

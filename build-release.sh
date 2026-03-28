@@ -39,6 +39,13 @@ docker build \
   ./browser
 
 echo ""
+echo "Building lovhack-presentation..."
+docker build \
+  -t "${DOCKER_REPO_PREFIX}/lovhack-presentation:${TAG}" \
+  -t "${DOCKER_REPO_PREFIX}/lovhack-presentation:latest" \
+  ./presentation
+
+echo ""
 echo "Pushing lovhack-web..."
 docker push "${DOCKER_REPO_PREFIX}/lovhack-web:${TAG}"
 docker push "${DOCKER_REPO_PREFIX}/lovhack-web:latest"
@@ -47,9 +54,15 @@ echo "Pushing lovhack-browser..."
 docker push "${DOCKER_REPO_PREFIX}/lovhack-browser:${TAG}"
 docker push "${DOCKER_REPO_PREFIX}/lovhack-browser:latest"
 
+echo "Pushing lovhack-presentation..."
+docker push "${DOCKER_REPO_PREFIX}/lovhack-presentation:${TAG}"
+docker push "${DOCKER_REPO_PREFIX}/lovhack-presentation:latest"
+
 echo ""
 echo "Done. Pushed images:"
 echo "  ${DOCKER_REPO_PREFIX}/lovhack-web:${TAG}"
 echo "  ${DOCKER_REPO_PREFIX}/lovhack-web:latest"
 echo "  ${DOCKER_REPO_PREFIX}/lovhack-browser:${TAG}"
 echo "  ${DOCKER_REPO_PREFIX}/lovhack-browser:latest"
+echo "  ${DOCKER_REPO_PREFIX}/lovhack-presentation:${TAG}"
+echo "  ${DOCKER_REPO_PREFIX}/lovhack-presentation:latest"
