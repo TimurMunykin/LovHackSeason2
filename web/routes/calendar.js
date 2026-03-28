@@ -39,9 +39,13 @@ function setTime(date, timeStr) {
 }
 
 // POST /api/calendar/import
-// Body: { schedule: [...], startDate: "YYYY-MM-DD", weeks: 16, timezone: "Europe/Moscow" }
+// Body: { schedule: [...], startDate: "YYYY-MM-DD", endDate: "YYYY-MM-DD" }
 router.post('/import', requireAuth, async (req, res) => {
-  const { schedule, startDate, weeks = 16, timezone = 'Europe/Moscow' } = req.body;
+  const { schedule, startDate, endDate } = req.body;
+  const timezone = 'Europe/Moscow';
+  const weeks = endDate
+    ? Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (7 * 24 * 60 * 60 * 1000)))
+    : 16;
 
   if (!schedule?.length) return res.status(400).json({ error: 'No schedule entries provided' });
   if (!startDate) return res.status(400).json({ error: 'startDate is required (YYYY-MM-DD)' });

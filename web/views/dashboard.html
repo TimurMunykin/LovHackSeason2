@@ -124,13 +124,8 @@
               class="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
           </div>
           <div class="flex flex-col gap-1">
-            <label class="text-xs text-slate-400">Weeks</label>
-            <input type="number" id="semesterWeeks" value="16" min="1" max="52"
-              class="w-20 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-xs text-slate-400">Timezone</label>
-            <input type="text" id="semesterTz" value=""
+            <label class="text-xs text-slate-400">Semester end date</label>
+            <input type="date" id="semesterEnd"
               class="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
           </div>
         </div>
@@ -327,17 +322,21 @@
         const nextMonday = new Date();
         nextMonday.setDate(nextMonday.getDate() + (1 + 7 - nextMonday.getDay()) % 7 || 7);
         document.getElementById('semesterStart').value = nextMonday.toISOString().split('T')[0];
-        document.getElementById('semesterTz').value = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Moscow';
+        // Set default end date ~16 weeks from start
+        const endDefault = new Date(nextMonday);
+        endDefault.setDate(endDefault.getDate() + 16 * 7);
+        document.getElementById('semesterEnd').value = endDefault.toISOString().split('T')[0];
       }
     }
 
     async function importToCalendar() {
       if (!lastSchedule) return;
       const startDate = document.getElementById('semesterStart').value;
-      const weeks = parseInt(document.getElementById('semesterWeeks').value) || 16;
-      const timezone = document.getElementById('semesterTz').value || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Moscow';
+      const endDate = document.getElementById('semesterEnd').value;
 
       if (!startDate) return alert('Please set a semester start date');
+      if (!endDate) return alert('Please set a semester end date');
+      if (endDate <= startDate) return alert('End date must be after start date');
 
       const btn = document.getElementById('importBtn');
       const status = document.getElementById('importStatus');
@@ -351,7 +350,7 @@
         const resp = await fetch('/api/calendar/import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ schedule: lastSchedule, startDate, weeks, timezone }),
+          body: JSON.stringify({ schedule: lastSchedule, startDate, endDate }),
         });
         const data = await resp.json();
 
