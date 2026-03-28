@@ -11,6 +11,7 @@ const MODEL = process.env.OPENAI_MODEL_SCHEDULE_EXTRACTION || 'gpt-5.4-nano';
 const CHUNK_TOKEN_BUDGET = 900_000;
 const CHARS_PER_TOKEN_ESTIMATE = 3.5;
 const MAX_RETRIES = 4;
+/** Chars to look back from first time signal (used when no structural marker found). */
 const SCHEDULE_CONTEXT_BEFORE = 2000;
 
 const NOISE_PREFIXES = [
@@ -65,8 +66,10 @@ timetable page. The page can be from ANY university and use ANY layout \
 
 The day of the week for each entry is often encoded STRUCTURALLY rather than \
 as visible text inside the entry — common patterns include:
-  - CSS grid: style="grid-area: N / ..." where N is the row (correlate with
-    day-header labels visible elsewhere on the page to learn the mapping).
+  - CSS grid: style="grid-area: ROW / colStart / ROW / colEnd" — the first number is the grid ROW.
+    Find the weekday header row (Mon, Tue, Wed, …) in the HTML; row 1 usually aligns with the
+    first labeled weekday column (often Monday left-to-right). Map each event's ROW to that day;
+    do not shift days arbitrarily.
   - HTML table: the entry's column position matches a <th> day header.
   - Parent container: the entry is inside a wrapper that carries the day name
     as a class, data attribute, or heading text.
@@ -155,6 +158,11 @@ const TIME_TOKEN_RE = /\b\d{1,2}[:.h]\d{2}(?:\s*[AaPp][Mm])?\b/;
 const DAY_RE =
   /\b(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)\b/i;
 
+/**
+ * Trim leading page chrome but keep the timetable shell (day headers + grid).
+ * Anchoring only on the first HH:MM–HH:MM with a tiny lookback drops the Mon–Fri
+ * header row on many sites (e.g. KOS), which breaks grid-row → day mapping.
+ */
 function trimToSchedule(minimizedHtml) {
   let anchor = null;
   let m = TIME_RANGE_RE.exec(minimizedHtml);
@@ -168,7 +176,27 @@ function trimToSchedule(minimizedHtml) {
     }
   }
   if (anchor == null) return minimizedHtml;
-  const start = Math.max(0, anchor - SCHEDULE_CONTEXT_BEFORE);
+
+  // Earliest structural marker before the time anchor = start of timetable UI
+  const structuralSources = [
+    'class="[^"]*schedule-events-grid',
+    'class="[^"]*day-cell',
+    'class="[^"]*schedule-column',
+    '\\bfc-timegrid\\b',
+    '\\bfc-daygrid\\b',
+    'class="[^"]*timetable[^"]*"',
+  ];
+  let structuralStart = anchor;
+  for (const src of structuralSources) {
+    const g = new RegExp(src, 'gi');
+    let match;
+    while ((match = g.exec(minimizedHtml)) !== null) {
+      if (match.index < anchor) structuralStart = Math.min(structuralStart, match.index);
+    }
+  }
+
+  const fromTime = Math.max(0, anchor - SCHEDULE_CONTEXT_BEFORE);
+  const start = Math.min(structuralStart, fromTime);
   return minimizedHtml.slice(start);
 }
 
