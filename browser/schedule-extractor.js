@@ -78,7 +78,7 @@ schema; omit fields that are genuinely absent from this page:
 {
   "course_code":  string | null,   // short identifier, e.g. "CS101", "NI-KOD"
   "course_name":  string | null,   // full name of the course
-  "day":          string,          // English full name: "Monday"…"Sunday"
+  "day":          string,          // MUST be full English: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday
   "time_start":   string,          // 24 h "HH:MM"
   "time_end":     string | null,   // 24 h "HH:MM"
   "teacher":      string | string[] | null,  // name(s) of instructor(s)
@@ -90,7 +90,7 @@ schema; omit fields that are genuinely absent from this page:
 }
 
 Rules:
-- Determine "day" from the HTML structure — never leave it null if determinable.
+- Determine "day" from the HTML structure — never leave it null if determinable. ALWAYS translate to English (Monday–Sunday) regardless of the page language.
 - The SAME course CAN appear multiple times (different days, times, rooms, or
   groups) — output each occurrence as a SEPARATE entry.
 - Convert all times to 24 h "HH:MM" regardless of input format.
