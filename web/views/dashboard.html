@@ -24,7 +24,7 @@
     </div>
   </header>
 
-  <main class="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
+  <main id="mainContent" class="flex-1 max-w-6xl mx-auto px-6 py-8 w-full">
 
     <!-- Start View -->
     <div id="startView">
@@ -65,14 +65,14 @@
         <!-- VNC Browser View -->
         <div class="lg:col-span-2">
           <div class="bg-black rounded-xl overflow-hidden border border-slate-700">
-            <iframe id="vncFrame" src="" class="w-full border-none" style="height: 65vh;"></iframe>
+            <iframe id="vncFrame" src="" class="w-full border-none" style="height: calc(100vh - 160px);"></iframe>
           </div>
         </div>
 
         <!-- AI Log -->
         <div class="flex flex-col">
           <h3 class="text-sm font-medium text-slate-400 mb-2">AI Agent Log</h3>
-          <div id="aiLog" class="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 overflow-y-auto max-h-[500px] text-xs font-mono space-y-1">
+          <div id="aiLog" class="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 overflow-y-auto text-xs font-mono space-y-1" style="max-height: calc(100vh - 200px);"
           </div>
         </div>
       </div>
@@ -211,6 +211,7 @@
       document.getElementById('startView').classList.add('hidden');
       document.getElementById('resultView').classList.add('hidden');
       document.getElementById('sessionView').classList.remove('hidden');
+      document.getElementById('mainContent').classList.remove('max-w-6xl');
     }
 
     function connectSSE() {
@@ -294,6 +295,7 @@
     function showResult(result) {
       if (eventSource) { eventSource.close(); eventSource = null; }
       document.getElementById('sessionView').classList.add('hidden');
+      document.getElementById('mainContent').classList.add('max-w-6xl');
       document.getElementById('vncFrame').src = '';
       document.getElementById('resultView').classList.remove('hidden');
 
@@ -377,6 +379,7 @@
       lastSchedule = null;
       document.getElementById('resultView').classList.add('hidden');
       document.getElementById('sessionView').classList.add('hidden');
+      document.getElementById('mainContent').classList.add('max-w-6xl');
       document.getElementById('startView').classList.remove('hidden');
       document.getElementById('startBtn').disabled = false;
       document.getElementById('startBtn').textContent = 'Start';
